@@ -1,0 +1,33 @@
+[package]
+name = "hitman-commons"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror = "1.0.61"
+tryvial = "0.2.0"
+rpkg-rs = { version = "1.0.0-rc.1", optional = true }
+serde = { version = "1.0.203", features = ["derive"], optional = true }
+serde_json = { version = "1.0.120", optional = true }
+serde-hex = { version = "0.1.0", optional = true }
+md5 = "0.7.0"
+specta = { version = "=2.0.0-rc.7", optional = true }
+brotli-decompressor = { version = "4.0.1", optional = true }
+serde-smile = { version = "0.2.1", optional = true }
+hashbrown = { version = "0.14.5", features = ["serde"], optional = true }
+tex-rs = { git = "https://github.com/dafitius/GlacierFormats-rs", optional = true }
+tonytools = { git = "https://github.com/AnthonyFuller/tonytools-rs", optional = true }
+
+[features]
+rpkg-rs = ["dep:rpkg-rs"]
+tex-rs = ["dep:tex-rs"]
+tonytools = ["dep:tonytools"]
+serde = ["dep:serde", "dep:serde-hex"]
+resourcelib = ["dep:serde_json"]
+specta = ["serde", "dep:specta"]
+hash_list = [
+    "serde",
+    "dep:brotli-decompressor",
+    "dep:serde-smile",
+    "dep:hashbrown",
+]
