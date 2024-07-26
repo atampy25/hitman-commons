@@ -26,7 +26,10 @@ pub struct RpkgResourceMeta {
 	pub hash_size_final: u32,
 	pub hash_size_in_memory: u32,
 	pub hash_size_in_video_memory: u32,
-	pub hash_value: String
+	pub hash_value: String,
+
+	#[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+	pub hash_path: Option<String>
 }
 
 #[cfg_attr(feature = "specta", derive(specta::Type))]
@@ -139,7 +142,8 @@ impl RpkgResourceMeta {
 			hash_size_final,
 			hash_size_in_memory,
 			hash_size_in_video_memory,
-			hash_value
+			hash_value,
+			hash_path: None
 		}
 	}
 
@@ -147,7 +151,7 @@ impl RpkgResourceMeta {
 	pub fn to_binary(&self) -> Result<Vec<u8>> {
 		let mut data = Vec::with_capacity(44);
 
-		// Note: hash_path is not considered here despite it technically existing; this is in line with RPKG Tool's behaviour
+		// Note: hash_path is not considered here; this is in line with RPKG Tool's behaviour
 		data.extend(ResourceID::from_any(&self.hash_value)?.as_u64().to_le_bytes());
 		data.extend(self.hash_offset.to_le_bytes());
 		data.extend(self.hash_size.to_le_bytes());
@@ -185,6 +189,7 @@ impl RpkgResourceMeta {
 			hash_size: metadata.compressed_size_and_is_scrambled_flag,
 			hash_size_final: metadata.data_size,
 			hash_value: metadata.core_info.id.to_string(),
+			hash_path: None,
 			hash_size_in_memory: metadata.system_memory_requirement,
 			hash_size_in_video_memory: metadata.video_memory_requirement,
 			hash_resource_type: metadata.core_info.resource_type.into(),
@@ -212,6 +217,12 @@ impl RpkgResourceMeta {
 	#[cfg(feature = "hash_list")]
 	#[try_fn]
 	pub fn apply_hash_list(&mut self, hash_list: &HashMap<ResourceID, HashData>) -> Result<(), RpkgInteropError> {
+		if let Some(entry) = hash_list.get(&ResourceID::from_any(&self.hash_value)?) {
+			if let Some(path) = entry.path.as_ref() {
+				self.hash_path = Some(path.to_owned());
+			}
+		}
+
 		for reference in &mut self.hash_reference_data {
 			if let Some(entry) = hash_list.get(&ResourceID::from_any(&reference.hash)?) {
 				if let Some(path) = entry.path.as_ref() {
@@ -223,6 +234,11 @@ impl RpkgResourceMeta {
 
 	#[try_fn]
 	pub fn normalise_hashes(&mut self) -> Result<(), RpkgInteropError> {
+		// This can be a path instead of a hash
+		// One tool was slightly easier to write with this behaviour, so Anthony Fuller modified the RPKG codebase to support it
+		// Which means we also have to support it
+		self.hash_value = ResourceID::from_any(&self.hash_value)?.to_string();
+
 		for reference in &mut self.hash_reference_data {
 			reference.hash = ResourceID::from_any(&reference.hash)?.to_string();
 		}
@@ -253,6 +269,7 @@ impl From<ResourceInfo> for RpkgResourceMeta {
 				as u32,
 			hash_size_final: info.size(),
 			hash_value: info.rrid().to_hex_string(),
+			hash_path: None,
 			hash_size_in_memory: info.system_memory_requirement(),
 			hash_size_in_video_memory: info.video_memory_requirement(),
 			hash_resource_type: info.data_type(),
@@ -285,6 +302,7 @@ impl From<&ResourceInfo> for RpkgResourceMeta {
 				as u32,
 			hash_size_final: info.size(),
 			hash_value: info.rrid().to_hex_string(),
+			hash_path: None,
 			hash_size_in_memory: info.system_memory_requirement(),
 			hash_size_in_video_memory: info.video_memory_requirement(),
 			hash_resource_type: info.data_type(),
