@@ -1,5 +1,3 @@
-#![feature(cursor_remaining)]
-
 pub mod game;
 pub mod metadata;
 pub mod rpkg_tool;

@@ -244,6 +244,7 @@ impl RpkgResourceMeta {
 		}
 	}
 
+	#[cfg(feature = "hash_list")]
 	#[try_fn]
 	pub fn with_hash_list(mut self, hash_list: &HashMap<ResourceID, HashData>) -> Result<Self, RpkgInteropError> {
 		self.apply_hash_list(hash_list)?;
