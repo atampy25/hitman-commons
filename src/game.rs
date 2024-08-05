@@ -4,6 +4,7 @@ use thiserror::Error;
 use tryvial::try_fn;
 
 #[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]

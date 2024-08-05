@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use serde_json::Value;
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -21,6 +23,8 @@ pub struct BlueprintSubEntity {
 	pub entity_subsets: Vec<(String, EntitySubset)>
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -37,6 +41,8 @@ pub struct EntityBlueprint {
 	pub pin_connection_override_deletes: Vec<ExternalPinConnection>
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -46,10 +52,12 @@ pub struct FactorySubEntity {
 	pub property_values: Vec<Property>,
 	pub post_init_property_values: Vec<Property>,
 
-	#[cfg_attr(feature = "serde", serde(default = "Vec::new"))] // H2 does not have this property
+	#[cfg_attr(feature = "serde", serde(default))] // H2 does not have this property
 	pub platform_specific_property_values: Vec<PlatformSpecificProperty>
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -62,6 +70,8 @@ pub struct EntityFactory {
 	pub external_scene_type_indices_in_resource_header: Vec<usize>
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -74,6 +84,8 @@ pub struct EntityReference {
 	pub exposed_entity: String
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -83,6 +95,8 @@ pub struct ExposedEntity {
 	pub a_targets: Vec<EntityReference>
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -98,6 +112,8 @@ pub struct PinConnection {
 	pub constant_pin_value: PropertyValue
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -107,6 +123,8 @@ pub struct PlatformSpecificProperty {
 	pub post_init: bool
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -119,6 +137,8 @@ pub struct PropertyAlias {
 	pub s_property_name: String
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -127,6 +147,8 @@ pub struct PropertyOverride {
 	pub property_value: Property
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -134,6 +156,8 @@ pub struct EntitySubset {
 	pub entities: Vec<usize>
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -145,6 +169,8 @@ pub struct ExternalPinConnection {
 	pub constant_pin_value: PropertyValue
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Property {
@@ -155,6 +181,8 @@ pub struct Property {
 	pub value: PropertyValue
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct PropertyValue {
@@ -165,6 +193,8 @@ pub struct PropertyValue {
 	pub property_value: Value
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", serde(untagged))]
@@ -173,6 +203,8 @@ pub enum PropertyID {
 	String(String)
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -183,6 +215,8 @@ pub struct FactorySubEntityLegacy {
 	pub post_init_property_values: Vec<Property>
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -195,6 +229,8 @@ pub struct EntityFactoryLegacy {
 	pub external_scene_type_indices_in_resource_header: Vec<usize>
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -209,6 +245,8 @@ pub struct BlueprintSubEntityLegacy {
 	pub entity_subsets: Vec<(String, EntitySubset)>
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -223,6 +261,8 @@ pub struct EntityBlueprintLegacy {
 	pub override_deletes: Vec<EntityReference>
 }
 
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]

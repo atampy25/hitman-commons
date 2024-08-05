@@ -9,7 +9,7 @@ use tryvial::try_fn;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::metadata::{ExtendedResourceMetadata, FromStrError, ResourceID};
+use crate::metadata::{ExtendedResourceMetadata, FromStrError, RuntimeID};
 
 #[cfg(feature = "hash_list")]
 use crate::hash_list::HashData;
@@ -33,6 +33,7 @@ pub struct RpkgResourceMeta {
 }
 
 #[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct RpkgResourceReference {
@@ -152,7 +153,7 @@ impl RpkgResourceMeta {
 		let mut data = Vec::with_capacity(44);
 
 		// Note: hash_path is not considered here; this is in line with RPKG Tool's behaviour
-		data.extend(ResourceID::from_any(&self.hash_value)?.as_u64().to_le_bytes());
+		data.extend(RuntimeID::from_any(&self.hash_value)?.as_u64().to_le_bytes());
 		data.extend(self.hash_offset.to_le_bytes());
 		data.extend(self.hash_size.to_le_bytes());
 		data.extend(self.hash_resource_type.as_bytes());
@@ -176,7 +177,7 @@ impl RpkgResourceMeta {
 			}
 
 			for reference in &self.hash_reference_data {
-				data.extend(ResourceID::from_any(&reference.hash)?.as_u64().to_le_bytes());
+				data.extend(RuntimeID::from_any(&reference.hash)?.as_u64().to_le_bytes());
 			}
 		}
 
@@ -185,9 +186,10 @@ impl RpkgResourceMeta {
 
 	pub fn from_resource_metadata(metadata: ExtendedResourceMetadata, use_legacy_flags: bool) -> Self {
 		RpkgResourceMeta {
-			hash_offset: metadata.data_offset,
-			hash_size: metadata.compressed_size_and_is_scrambled_flag,
-			hash_size_final: metadata.data_size,
+			hash_offset: 0,
+			hash_size: if metadata.core_info.compressed { 1000 } else { 0 }
+				| if metadata.core_info.scrambled { 0x80000000 } else { 0x0 },
+			hash_size_final: 1000,
 			hash_value: metadata.core_info.id.to_string(),
 			hash_path: None,
 			hash_size_in_memory: metadata.system_memory_requirement,
@@ -201,7 +203,7 @@ impl RpkgResourceMeta {
 					flag: format!(
 						"{:02X}",
 						if use_legacy_flags {
-							todo!("Can't emit legacy flags yet")
+							reference.flags.as_legacy()
 						} else {
 							reference.flags.as_modern()
 						}
@@ -209,22 +211,25 @@ impl RpkgResourceMeta {
 					hash: reference.resource.to_string()
 				})
 				.collect(),
-			hash_reference_table_size: metadata.references_chunk_size as u32,
-			hash_reference_table_dummy: metadata.states_chunk_size as u32
+			hash_reference_table_size: match &metadata.core_info.references.len() {
+				0 => 0x0,
+				n => 0x4 + (*n as u32 * 0x9)
+			},
+			hash_reference_table_dummy: 0
 		}
 	}
 
 	#[cfg(feature = "hash_list")]
 	#[try_fn]
-	pub fn apply_hash_list(&mut self, hash_list: &HashMap<ResourceID, HashData>) -> Result<(), RpkgInteropError> {
-		if let Some(entry) = hash_list.get(&ResourceID::from_any(&self.hash_value)?) {
+	pub fn apply_hash_list(&mut self, hash_list: &HashMap<RuntimeID, HashData>) -> Result<(), RpkgInteropError> {
+		if let Some(entry) = hash_list.get(&RuntimeID::from_any(&self.hash_value)?) {
 			if let Some(path) = entry.path.as_ref() {
 				self.hash_path = Some(path.to_owned());
 			}
 		}
 
 		for reference in &mut self.hash_reference_data {
-			if let Some(entry) = hash_list.get(&ResourceID::from_any(&reference.hash)?) {
+			if let Some(entry) = hash_list.get(&RuntimeID::from_any(&reference.hash)?) {
 				if let Some(path) = entry.path.as_ref() {
 					reference.hash = path.to_owned();
 				}
@@ -237,16 +242,16 @@ impl RpkgResourceMeta {
 		// This can be a path instead of a hash
 		// One tool was slightly easier to write with this behaviour, so Anthony Fuller modified the RPKG codebase to support it
 		// Which means we also have to support it
-		self.hash_value = ResourceID::from_any(&self.hash_value)?.to_string();
+		self.hash_value = RuntimeID::from_any(&self.hash_value)?.to_string();
 
 		for reference in &mut self.hash_reference_data {
-			reference.hash = ResourceID::from_any(&reference.hash)?.to_string();
+			reference.hash = RuntimeID::from_any(&reference.hash)?.to_string();
 		}
 	}
 
 	#[cfg(feature = "hash_list")]
 	#[try_fn]
-	pub fn with_hash_list(mut self, hash_list: &HashMap<ResourceID, HashData>) -> Result<Self, RpkgInteropError> {
+	pub fn with_hash_list(mut self, hash_list: &HashMap<RuntimeID, HashData>) -> Result<Self, RpkgInteropError> {
 		self.apply_hash_list(hash_list)?;
 		self
 	}

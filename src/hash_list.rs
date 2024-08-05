@@ -5,38 +5,35 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tryvial::try_fn;
 
-use crate::metadata::{ResourceID, ResourceType};
+use crate::metadata::{ResourceType, RuntimeID};
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct DeserialisedHashList {
 	pub version: u32,
 	pub entries: Vec<DeserialisedEntry>
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct DeserialisedEntry {
 	pub resource_type: ResourceType,
-	pub hash: ResourceID,
+	pub hash: RuntimeID,
 	pub path: String,
 	pub hint: String,
 	pub game_flags: u8
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct HashList {
 	pub version: u32,
-	pub entries: HashMap<ResourceID, HashData>
+	pub entries: HashMap<RuntimeID, HashData>
 }
 
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct HashData {
 	pub resource_type: ResourceType,
@@ -85,7 +82,7 @@ impl HashList {
 	}
 
 	/// Gets the path of a resource if possible; otherwise just returns the hash.
-	pub fn to_path(&self, hash: &ResourceID) -> String {
+	pub fn to_path(&self, hash: &RuntimeID) -> String {
 		if let Some(entry) = self.entries.get(hash) {
 			if let Some(path) = entry.path.as_ref() {
 				return path.to_owned();

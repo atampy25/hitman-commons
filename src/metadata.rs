@@ -1,11 +1,12 @@
 use core::{fmt, str};
 use std::{
 	fmt::{Debug, Display},
+	io::{Cursor, Read, Seek, SeekFrom},
 	str::FromStr
 };
 
 #[cfg(feature = "serde")]
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Serialize};
 
 #[cfg(feature = "serde")]
 use serde_hex::{SerHex, StrictCap};
@@ -15,22 +16,45 @@ use tryvial::try_fn;
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
-pub struct ResourceID(#[cfg_attr(feature = "serde", serde(with = "SerHex::<StrictCap>"))] u64);
+pub struct RuntimeID(#[cfg_attr(feature = "serde", serde(with = "SerHex::<StrictCap>"))] u64);
 
 #[cfg(feature = "specta")]
-impl specta::Type for ResourceID {
+impl specta::Type for RuntimeID {
 	fn inline(_: &mut specta::TypeMap, _: &[specta::DataType]) -> specta::DataType {
 		specta::DataType::Primitive(specta::PrimitiveType::String)
 	}
 }
 
+#[cfg(feature = "schemars")]
+impl schemars::JsonSchema for RuntimeID {
+	fn schema_name() -> String {
+		"RuntimeID".to_owned()
+	}
+
+	fn schema_id() -> std::borrow::Cow<'static, str> {
+		std::borrow::Cow::Borrowed("RuntimeID")
+	}
+
+	fn json_schema(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+		schemars::schema::SchemaObject {
+			instance_type: Some(schemars::schema::InstanceType::String.into()),
+			string: Some(Box::new(schemars::schema::StringValidation {
+				pattern: Some(r"^00[0-9A-F]{14}$".to_owned()),
+				..Default::default()
+			})),
+			..Default::default()
+		}
+		.into()
+	}
+}
+
 #[derive(Error, Debug)]
 pub enum FromU64Error {
-	#[error("value too high to be valid ResourceID")]
+	#[error("value too high to be valid RuntimeID")]
 	TooHigh
 }
 
-impl TryFrom<u64> for ResourceID {
+impl TryFrom<u64> for RuntimeID {
 	type Error = FromU64Error;
 
 	#[try_fn]
@@ -43,8 +67,8 @@ impl TryFrom<u64> for ResourceID {
 	}
 }
 
-impl From<ResourceID> for u64 {
-	fn from(val: ResourceID) -> Self {
+impl From<RuntimeID> for u64 {
+	fn from(val: RuntimeID) -> Self {
 		val.0
 	}
 }
@@ -57,11 +81,11 @@ pub enum FromStrError {
 	#[error("invalid length")]
 	InvalidLength,
 
-	#[error("invalid ResourceID: {0}")]
+	#[error("invalid RuntimeID: {0}")]
 	InvalidID(#[from] FromU64Error)
 }
 
-impl FromStr for ResourceID {
+impl FromStr for RuntimeID {
 	type Err = FromStrError;
 
 	#[try_fn]
@@ -75,25 +99,25 @@ impl FromStr for ResourceID {
 	}
 }
 
-impl Display for ResourceID {
+impl Display for RuntimeID {
 	fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
 		write!(f, "{:016X}", self.0)
 	}
 }
 
-impl Debug for ResourceID {
+impl Debug for RuntimeID {
 	fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
 		write!(f, "{:016X}", self.0)
 	}
 }
 
-impl ResourceID {
+impl RuntimeID {
 	#[try_fn]
 	pub fn from_any(val: &str) -> Result<Self, FromStrError> {
 		if val.starts_with('0') {
-			ResourceID::from_str(val)?
+			RuntimeID::from_str(val)?
 		} else {
-			ResourceID::from_path(val)
+			RuntimeID::from_path(val)
 		}
 	}
 
@@ -114,35 +138,37 @@ impl ResourceID {
 }
 
 #[cfg(feature = "rpkg-rs")]
-impl TryFrom<rpkg_rs::resource::runtime_resource_id::RuntimeResourceID> for ResourceID {
+impl TryFrom<rpkg_rs::resource::runtime_resource_id::RuntimeResourceID> for RuntimeID {
 	type Error = FromStrError;
 
 	#[try_fn]
 	fn try_from(val: rpkg_rs::resource::runtime_resource_id::RuntimeResourceID) -> Result<Self, Self::Error> {
 		// TODO: We should be able to use the u64 directly instead of having to convert to/from a string.
-		ResourceID::from_str(&val.to_hex_string())?
+		RuntimeID::from_str(&val.to_hex_string())?
 	}
 }
 
 #[cfg(feature = "rpkg-rs")]
-impl From<ResourceID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-	fn from(val: ResourceID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
+impl From<RuntimeID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
+	fn from(val: RuntimeID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
 		rpkg_rs::resource::runtime_resource_id::RuntimeResourceID::from(Into::<u64>::into(val))
 	}
 }
 
 #[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ResourceReference {
-	pub resource: ResourceID,
+	pub resource: RuntimeID,
 
 	#[cfg_attr(feature = "serde", serde(flatten))]
 	pub flags: ReferenceFlags
 }
 
 #[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -158,6 +184,8 @@ pub struct ReferenceFlags {
 	#[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_zero"))]
 	pub language_code: u8
 }
+
+// TODO: This flags implementation doesn't properly support legacy flags; there are more reference types than just the three modern ones.
 
 #[cfg(feature = "serde")]
 fn is_false(val: &bool) -> bool {
@@ -186,9 +214,14 @@ impl ReferenceFlags {
 	pub fn as_modern(&self) -> u8 {
 		0x1f | ((self.acquired as u8) << 0x5) | ((self.reference_type as u8) << 0x6)
 	}
+
+	pub fn as_legacy(&self) -> u8 {
+		todo!("Can't emit legacy flags yet")
+	}
 }
 
 #[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
@@ -199,21 +232,181 @@ pub enum ReferenceType {
 }
 
 /// Core information about a resource.
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ResourceMetadata {
-	pub id: ResourceID,
-
-	#[cfg_attr(feature = "serde", serde(rename = "type"))]
+	pub id: RuntimeID,
 	pub resource_type: ResourceType,
-
+	pub compressed: bool,
+	pub scrambled: bool,
 	pub references: Vec<ResourceReference>
+}
+
+impl ResourceMetadata {
+	pub fn infer_scrambled(resource_type: ResourceType) -> bool {
+		match resource_type.as_ref() {
+			// Only these types are not scrambled
+			"GFXV" | "TEXD" => false,
+
+			_ => true
+		}
+	}
+
+	pub fn infer_compressed(resource_type: ResourceType) -> bool {
+		match resource_type.as_ref() {
+			// Always compressed
+			"REPO" | "ASVA" | "VIDB" | "GFXF" | "UICB" | "PRIM" | "WSWB" | "DLGE" | "MATI" | "BMSK" | "TBLU"
+			| "AIBB" | "YSHP" | "MATE" | "MRTN" | "CRMD" | "WSGB" | "LOCR" | "MJBA" | "NAVP" | "BORG" | "ENUM"
+			| "BOXC" | "CPPT" | "ECPB" | "FXAC" | "WBNK" | "ATMD" | "ORES" | "FXAS" | "MRTR" | "RTLV" | "AIBZ"
+			| "GIDX" | "AIRG" | "DITL" | "SDEF" | "CBLU" | "TEMP" | "DSWB" | "GFXI" => true,
+
+			// Usually compressed
+			"MATB" | "SCDA" | "JSON" | "ALOC" | "MATT" | "VTXD" | "PREL" | "WWEV" => true,
+
+			// Never compressed
+			"LINE" | "WWES" | "WWEM" | "TEXT" | "ERES" | "GFXV" | "TEXD" | "WSGT" | "ASET" | "CLNG" | "ECPT"
+			| "UICT" | "WSWT" | "AIBX" | "ASEB" => false,
+
+			_ => true
+		}
+	}
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for ResourceMetadata {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: serde::Serializer
+	{
+		let mut state = serializer.serialize_struct("ResourceMetadata", 5)?;
+		state.serialize_field("id", &self.id)?;
+		state.serialize_field("type", &self.resource_type)?;
+		state.serialize_field("references", &self.references)?;
+
+		if self.scrambled != Self::infer_scrambled(self.resource_type) {
+			state.serialize_field("scrambled", &self.scrambled)?;
+		} else {
+			state.skip_field("scrambled")?;
+		}
+
+		if self.compressed != Self::infer_compressed(self.resource_type) {
+			state.serialize_field("compressed", &self.compressed)?;
+		} else {
+			state.skip_field("compressed")?;
+		}
+
+		state.end()
+	}
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for ResourceMetadata {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: serde::Deserializer<'de>
+	{
+		deserializer.deserialize_struct(
+			"ResourceMetadata",
+			&["id", "type", "references", "scrambled", "compressed"],
+			ResMetaVisitor
+		)
+	}
+}
+
+#[cfg(feature = "serde")]
+#[derive(Deserialize)]
+#[serde(field_identifier, rename_all = "camelCase")]
+enum ResMetaField {
+	Id,
+	Type,
+	References,
+	Scrambled,
+	Compressed
+}
+
+#[cfg(feature = "serde")]
+struct ResMetaVisitor;
+
+#[cfg(feature = "serde")]
+impl<'de> Visitor<'de> for ResMetaVisitor {
+	type Value = ResourceMetadata;
+
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		formatter.write_str("an object containing a resource's metadata")
+	}
+
+	#[try_fn]
+	fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+	where
+		A: serde::de::MapAccess<'de>
+	{
+		let mut id = None;
+		let mut resource_type = None;
+		let mut references = None;
+		let mut scrambled = None;
+		let mut compressed = None;
+		while let Some(key) = map.next_key()? {
+			match key {
+				ResMetaField::Id => {
+					if id.is_some() {
+						return Err(serde::de::Error::duplicate_field("id"));
+					}
+
+					id = Some(map.next_value()?);
+				}
+
+				ResMetaField::Type => {
+					if resource_type.is_some() {
+						return Err(serde::de::Error::duplicate_field("type"));
+					}
+
+					resource_type = Some(map.next_value()?);
+				}
+
+				ResMetaField::References => {
+					if references.is_some() {
+						return Err(serde::de::Error::duplicate_field("references"));
+					}
+
+					references = Some(map.next_value()?);
+				}
+
+				ResMetaField::Scrambled => {
+					if scrambled.is_some() {
+						return Err(serde::de::Error::duplicate_field("scrambled"));
+					}
+
+					scrambled = Some(map.next_value()?);
+				}
+
+				ResMetaField::Compressed => {
+					if compressed.is_some() {
+						return Err(serde::de::Error::duplicate_field("compressed"));
+					}
+
+					compressed = Some(map.next_value()?);
+				}
+			}
+		}
+
+		let id = id.ok_or_else(|| serde::de::Error::missing_field("id"))?;
+		let resource_type = resource_type.ok_or_else(|| serde::de::Error::missing_field("type"))?;
+		let references = references.ok_or_else(|| serde::de::Error::missing_field("references"))?;
+		let scrambled = scrambled.unwrap_or_else(|| ResourceMetadata::infer_scrambled(resource_type));
+		let compressed = compressed.unwrap_or_else(|| ResourceMetadata::infer_compressed(resource_type));
+
+		ResourceMetadata {
+			id,
+			resource_type,
+			references,
+			scrambled,
+			compressed
+		}
+	}
 }
 
 /// Extended information about a resource.
 ///
-/// Where necessary, much of this information can automatically be computed from the core information and the resource data itself.
+/// Where necessary, this information can be computed from the core information and the resource data itself.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -221,11 +414,6 @@ pub struct ExtendedResourceMetadata {
 	#[cfg_attr(feature = "serde", serde(flatten))]
 	pub core_info: ResourceMetadata,
 
-	pub data_size: u32,
-	pub data_offset: u64,
-	pub compressed_size_and_is_scrambled_flag: u32,
-	pub references_chunk_size: usize,
-	pub states_chunk_size: usize,
 	pub system_memory_requirement: u32,
 	pub video_memory_requirement: u32
 }
@@ -237,6 +425,29 @@ pub struct ResourceType([u8; 4]);
 impl specta::Type for ResourceType {
 	fn inline(_: &mut specta::TypeMap, _: &[specta::DataType]) -> specta::DataType {
 		specta::DataType::Primitive(specta::PrimitiveType::String)
+	}
+}
+
+#[cfg(feature = "schemars")]
+impl schemars::JsonSchema for ResourceType {
+	fn schema_name() -> String {
+		"ResourceType".to_owned()
+	}
+
+	fn schema_id() -> std::borrow::Cow<'static, str> {
+		std::borrow::Cow::Borrowed("ResourceType")
+	}
+
+	fn json_schema(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+		schemars::schema::SchemaObject {
+			instance_type: Some(schemars::schema::InstanceType::String.into()),
+			string: Some(Box::new(schemars::schema::StringValidation {
+				pattern: Some(r"^[A-Z]{4}$".to_owned()),
+				..Default::default()
+			})),
+			..Default::default()
+		}
+		.into()
 	}
 }
 
@@ -390,6 +601,68 @@ impl PartialEq<String> for ResourceType {
 	}
 }
 
+#[derive(Error, Debug)]
+pub enum MetadataCalculationError {
+	#[error("seek error: {0}")]
+	Seek(#[from] std::io::Error),
+
+	#[error("invalid number: {0}")]
+	InvalidNumber(#[from] std::num::TryFromIntError),
+
+	#[error("unknown resource type {0}")]
+	UnknownResourceType(ResourceType)
+}
+
+impl ResourceMetadata {
+	#[try_fn]
+	pub fn to_extended(self, data: &[u8]) -> Result<ExtendedResourceMetadata, MetadataCalculationError> {
+		ExtendedResourceMetadata {
+			system_memory_requirement: match self.resource_type.as_ref() {
+				"AIBX" | "AIBZ" | "AIRG" | "ASEB" | "ASET" | "ASVA" | "ATMD" | "BLOB" | "BMSK" | "BORG" | "BOXC"
+				| "CRMD" | "DITL" | "DLGE" | "ECPT" | "ENUM" | "ERES" | "GFXF" | "GFXI" | "GFXV" | "JSON" | "LINE"
+				| "LOCR" | "MATB" | "MATE" | "MATI" | "MATT" | "NAVP" | "ORES" | "PRIM" | "REPO" | "RTLV" | "SDEF"
+				| "TEXD" | "TEXT" | "UICT" | "VIDB" | "VTXD" | "WBNK" | "WSGT" | "WSWT" | "WWEM" | "WWES" | "WWEV"
+				| "TELI" | "CLNG" => 0xFFFFFFFF,
+
+				"AIBB" | "CBLU" | "CPPT" | "DSWB" | "ECPB" | "GIDX" | "TEMP" | "TBLU" | "UICB" | "WSGB" | "WSWB" => {
+					let mut cur = Cursor::new(data);
+					cur.seek(SeekFrom::Start(0x8))?;
+
+					let mut x = [0; 4];
+					cur.read_exact(&mut x)?;
+					u32::from_be_bytes(x)
+				}
+
+				"ALOC" => ((data.len() as f64) * 1.75) as u32,
+
+				"FXAS" | "MJBA" | "MRTN" | "MRTR" | "SCDA" => data.len() as u32,
+
+				"PREL" => (data.len() - 0x10) as u32,
+
+				"YSHP" => ((data.len() as f64) * 1.5) as u32,
+
+				"FXAC" | "HIKC" | "IMAP" | "SLMX" => todo!(),
+
+				_ => return Err(MetadataCalculationError::UnknownResourceType(self.resource_type))
+			},
+			video_memory_requirement: match self.resource_type.as_ref() {
+				"AIBB" | "AIBX" | "AIBZ" | "AIRG" | "ASEB" | "ASET" | "ASVA" | "ATMD" | "BLOB" | "BMSK" | "BORG"
+				| "CBLU" | "CLNG" | "CPPT" | "CRMD" | "DITL" | "DLGE" | "DSWB" | "ECPB" | "ECPT" | "ENUM" | "ERES"
+				| "GFXF" | "GFXI" | "GFXV" | "JSON" | "LINE" | "LOCR" | "MATB" | "MATE" | "MATI" | "MATT" | "GIDX"
+				| "NAVP" | "ORES" | "PRIM" | "REPO" | "RTLV" | "SDEF" | "TBLU" | "TELI" | "TEMP" | "UICB" | "UICT"
+				| "VIDB" | "VTXD" | "WBNK" | "WSGB" | "WSGT" | "WSWB" | "WSWT" | "WWEM" | "WWES" | "WWEV" => 0xFFFFFFFF,
+
+				"ALOC" | "FXAC" | "FXAS" | "MJBA" | "MRTN" | "MRTR" | "PREL" | "SCDA" | "YSHP" => 0,
+
+				"BOXC" | "HIKC" | "IMAP" | "SLMX" | "TEXD" | "TEXT" => todo!(),
+
+				_ => return Err(MetadataCalculationError::UnknownResourceType(self.resource_type))
+			},
+			core_info: self
+		}
+	}
+}
+
 #[cfg(feature = "rpkg-rs")]
 use rpkg_rs::resource::resource_info::ResourceInfo;
 
@@ -418,7 +691,7 @@ impl TryFrom<&ResourceInfo> for ExtendedResourceMetadata {
 					.iter()
 					.map(|(id, flags)| {
 						Ok::<_, Self::Error>(ResourceReference {
-							resource: ResourceID::from_str(&id.to_hex_string())
+							resource: RuntimeID::from_str(&id.to_hex_string())
 								.map_err(FromResourceInfoError::InvalidID)?,
 							flags: ReferenceFlags {
 								reference_type: match flags.reference_type() {
@@ -433,14 +706,10 @@ impl TryFrom<&ResourceInfo> for ExtendedResourceMetadata {
 							}
 						})
 					})
-					.collect::<Result<_, _>>()?
+					.collect::<Result<_, _>>()?,
+				compressed: info.is_compressed(),
+				scrambled: info.is_scrambled()
 			},
-			data_size: info.size(),
-			data_offset: info.data_offset(),
-			compressed_size_and_is_scrambled_flag: (info.compressed_size().unwrap_or(0)
-				| (if info.is_scrambled() { 0x80000000 } else { 0x0 })) as u32,
-			references_chunk_size: info.reference_chunk_size(),
-			states_chunk_size: info.states_chunk_size(),
 			system_memory_requirement: info.system_memory_requirement(),
 			video_memory_requirement: info.video_memory_requirement()
 		}
@@ -461,8 +730,7 @@ impl TryFrom<&ResourceInfo> for ResourceMetadata {
 				.iter()
 				.map(|(id, flags)| {
 					Ok::<_, Self::Error>(ResourceReference {
-						resource: ResourceID::from_str(&id.to_hex_string())
-							.map_err(FromResourceInfoError::InvalidID)?,
+						resource: RuntimeID::from_str(&id.to_hex_string()).map_err(FromResourceInfoError::InvalidID)?,
 						flags: ReferenceFlags {
 							reference_type: match flags.reference_type() {
 								rpkg_rs::resource::resource_package::ReferenceType::INSTALL => ReferenceType::Install,
@@ -474,7 +742,9 @@ impl TryFrom<&ResourceInfo> for ResourceMetadata {
 						}
 					})
 				})
-				.collect::<Result<_, _>>()?
+				.collect::<Result<_, _>>()?,
+			compressed: info.is_compressed(),
+			scrambled: info.is_scrambled()
 		}
 	}
 }

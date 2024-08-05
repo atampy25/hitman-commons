@@ -17,8 +17,11 @@ serde-smile = { version = "0.2.1", optional = true }
 hashbrown = { version = "0.14.5", features = ["serde"], optional = true }
 tex-rs = { git = "https://github.com/dafitius/GlacierFormats-rs", optional = true }
 tonytools = { git = "https://github.com/AnthonyFuller/tonytools-rs", optional = true }
+schemars = { version = "0.8.21", optional = true }
 
 [features]
+default = ["schemars"]
+schemars = ["dep:schemars"]
 rpkg-rs = ["dep:rpkg-rs"]
 tex-rs = ["dep:tex-rs"]
 tonytools = ["dep:tonytools"]
