@@ -14,6 +14,8 @@ use serde_hex::{SerHex, StrictCap};
 use thiserror::Error;
 use tryvial::try_fn;
 
+use crate::rpkg_tool::{RpkgInteropError, RpkgResourceMeta};
+
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
 pub struct RuntimeID(#[cfg_attr(feature = "serde", serde(with = "SerHex::<StrictCap>"))] u64);
@@ -164,6 +166,8 @@ pub struct ResourceReference {
 	pub resource: RuntimeID,
 
 	#[cfg_attr(feature = "serde", serde(flatten))]
+	#[cfg_attr(feature = "serde", serde(default))]
+	#[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_default_flags"))]
 	pub flags: ReferenceFlags
 }
 
@@ -181,11 +185,14 @@ pub struct ReferenceFlags {
 	pub acquired: bool,
 
 	#[cfg_attr(feature = "serde", serde(default))]
-	#[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_zero"))]
+	#[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_all_ones"))]
 	pub language_code: u8
 }
 
-// TODO: This flags implementation doesn't properly support legacy flags; there are more reference types than just the three modern ones.
+#[cfg(feature = "serde")]
+fn is_default_flags(val: &ReferenceFlags) -> bool {
+	val.reference_type == ReferenceType::Install && !val.acquired && val.language_code == 0b0001_1111
+}
 
 #[cfg(feature = "serde")]
 fn is_false(val: &bool) -> bool {
@@ -193,12 +200,72 @@ fn is_false(val: &bool) -> bool {
 }
 
 #[cfg(feature = "serde")]
-fn is_zero(val: &u8) -> bool {
-	*val == 0
+fn is_all_ones(val: &u8) -> bool {
+	*val == 0b0001_1111
+}
+
+impl Default for ReferenceFlags {
+	fn default() -> Self {
+		Self {
+			reference_type: ReferenceType::Install,
+			acquired: false,
+			language_code: 0b0001_1111
+		}
+	}
 }
 
 impl ReferenceFlags {
-	pub fn from_modern(flag: &u8) -> Self {
+	pub fn from_any(flag: u8) -> Self {
+		// First and fourth bits are padding in the legacy format
+		if flag & 0b0000_1001 != 0 {
+			Self::from_modern(flag)
+		} else {
+			let install_dependency = flag & 0b1000_0000 == 0b1000_0000;
+			let media_streamed = flag & 0b0100_0000 == 0b0100_0000;
+			let state_streamed = flag & 0b0010_0000 == 0b0010_0000;
+			let type_of_streaming_entity = flag & 0b0001_0000 == 0b0001_0000;
+			let weak_reference = flag & 0b0000_0100 == 0b0000_0100;
+
+			if install_dependency && weak_reference
+				|| media_streamed && state_streamed
+				|| state_streamed && type_of_streaming_entity
+				|| media_streamed && type_of_streaming_entity
+			{
+				Self::from_modern(flag)
+			} else {
+				Self::from_legacy(flag)
+			}
+		}
+	}
+
+	pub fn from_legacy(flag: u8) -> Self {
+		let install_dependency = flag & 0b1000_0000 == 0b1000_0000;
+		let media_streamed = flag & 0b0100_0000 == 0b0100_0000;
+		let state_streamed = flag & 0b0010_0000 == 0b0010_0000;
+		let type_of_streaming_entity = flag & 0b0001_0000 == 0b0001_0000;
+		let weak_reference = flag & 0b0000_0100 == 0b0000_0100;
+		let runtime_acquired = flag & 0b0000_0010 == 0b0000_0010;
+
+		Self {
+			reference_type: if type_of_streaming_entity {
+				ReferenceType::EntityType
+			} else if install_dependency {
+				ReferenceType::Install
+			} else if weak_reference {
+				ReferenceType::Weak
+			} else if media_streamed {
+				ReferenceType::Media
+			} else if state_streamed {
+				ReferenceType::State
+			} else {
+				ReferenceType::Normal
+			},
+			acquired: runtime_acquired,
+			language_code: 0x1F
+		}
+	}
+
+	pub fn from_modern(flag: u8) -> Self {
 		Self {
 			reference_type: match flag & 0b1100_0000 {
 				0 => ReferenceType::Install,
@@ -211,12 +278,34 @@ impl ReferenceFlags {
 		}
 	}
 
-	pub fn as_modern(&self) -> u8 {
-		0x1f | ((self.acquired as u8) << 0x5) | ((self.reference_type as u8) << 0x6)
+	pub fn as_legacy(&self) -> u8 {
+		let mut flag = match self.reference_type {
+			ReferenceType::Install => 0b1000_0000,
+			ReferenceType::Normal => 0b0000_0000,
+			ReferenceType::Weak => 0b0000_0100,
+			ReferenceType::Media => 0b0100_0000,
+			ReferenceType::State => 0b0010_0000,
+			ReferenceType::EntityType => 0b1001_0000
+		};
+
+		if self.acquired {
+			flag |= 0b0000_0010;
+		}
+
+		flag
 	}
 
-	pub fn as_legacy(&self) -> u8 {
-		todo!("Can't emit legacy flags yet")
+	pub fn as_modern(&self) -> u8 {
+		self.language_code
+			| ((self.acquired as u8) << 0x5)
+			| ((match self.reference_type {
+				ReferenceType::Install => 0,
+				ReferenceType::Normal => 1,
+				ReferenceType::Weak => 2,
+				ReferenceType::Media => 2,
+				ReferenceType::State => 1,
+				ReferenceType::EntityType => 0
+			}) << 0x6)
 	}
 }
 
@@ -228,7 +317,10 @@ impl ReferenceFlags {
 pub enum ReferenceType {
 	Install,
 	Normal,
-	Weak
+	Weak,
+	Media,      // same as Weak in modern format
+	State,      // same as Normal in modern format
+	EntityType  // same as Install in modern format
 }
 
 /// Core information about a resource.
@@ -606,9 +698,6 @@ pub enum MetadataCalculationError {
 	#[error("seek error: {0}")]
 	Seek(#[from] std::io::Error),
 
-	#[error("invalid number: {0}")]
-	InvalidNumber(#[from] std::num::TryFromIntError),
-
 	#[error("unknown resource type {0}")]
 	UnknownResourceType(ResourceType)
 }
@@ -659,6 +748,83 @@ impl ResourceMetadata {
 				_ => return Err(MetadataCalculationError::UnknownResourceType(self.resource_type))
 			},
 			core_info: self
+		}
+	}
+}
+
+#[derive(Error, Debug)]
+pub enum FromRpkgResourceMetaError {
+	#[error("couldn't normalise hashes: {0}")]
+	HashNormalisation(RpkgInteropError),
+
+	#[error("invalid ResourceID: {0}")]
+	InvalidID(#[from] FromStrError),
+
+	#[error("invalid flag: {0}")]
+	InvalidFlag(#[from] std::num::ParseIntError),
+
+	#[error("invalid resource type: {0}")]
+	InvalidType(#[from] ResourceTypeError)
+}
+
+impl TryFrom<RpkgResourceMeta> for ResourceMetadata {
+	type Error = FromRpkgResourceMetaError;
+
+	#[try_fn]
+	fn try_from(mut meta: RpkgResourceMeta) -> Result<Self, Self::Error> {
+		meta.normalise_hashes()
+			.map_err(FromRpkgResourceMetaError::HashNormalisation)?;
+
+		Self {
+			id: meta.hash_value.parse().map_err(FromRpkgResourceMetaError::InvalidID)?,
+			resource_type: meta.hash_resource_type.try_into()?,
+			compressed: meta.hash_size & 0x7FFFFFFF != 0,
+			scrambled: meta.hash_size & 0x80000000 == 0x80000000,
+			references: meta
+				.hash_reference_data
+				.into_iter()
+				.map(|x| {
+					Ok(ResourceReference {
+						resource: x.hash.parse().map_err(FromRpkgResourceMetaError::InvalidID)?,
+						flags: ReferenceFlags::from_any(
+							x.flag.parse::<u8>().map_err(FromRpkgResourceMetaError::InvalidFlag)?
+						)
+					})
+				})
+				.collect::<Result<_, Self::Error>>()?
+		}
+	}
+}
+
+impl TryFrom<RpkgResourceMeta> for ExtendedResourceMetadata {
+	type Error = FromRpkgResourceMetaError;
+
+	#[try_fn]
+	fn try_from(mut meta: RpkgResourceMeta) -> Result<Self, Self::Error> {
+		meta.normalise_hashes()
+			.map_err(FromRpkgResourceMetaError::HashNormalisation)?;
+
+		Self {
+			core_info: ResourceMetadata {
+				id: meta.hash_value.parse().map_err(FromRpkgResourceMetaError::InvalidID)?,
+				resource_type: meta.hash_resource_type.try_into()?,
+				compressed: meta.hash_size & 0x7FFFFFFF != 0,
+				scrambled: meta.hash_size & 0x80000000 == 0x80000000,
+				references: meta
+					.hash_reference_data
+					.into_iter()
+					.map(|x| {
+						Ok(ResourceReference {
+							resource: x.hash.parse().map_err(FromRpkgResourceMetaError::InvalidID)?,
+							flags: ReferenceFlags::from_any(
+								x.flag.parse::<u8>().map_err(FromRpkgResourceMetaError::InvalidFlag)?
+							)
+						})
+					})
+					.collect::<Result<_, Self::Error>>()?
+			},
+			system_memory_requirement: meta.hash_size_in_memory,
+			video_memory_requirement: meta.hash_size_in_video_memory
 		}
 	}
 }

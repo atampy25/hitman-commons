@@ -20,7 +20,6 @@ tonytools = { git = "https://github.com/AnthonyFuller/tonytools-rs", optional = 
 schemars = { version = "0.8.21", optional = true }
 
 [features]
-default = ["schemars"]
 schemars = ["dep:schemars"]
 rpkg-rs = ["dep:rpkg-rs"]
 tex-rs = ["dep:tex-rs"]
