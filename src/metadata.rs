@@ -787,7 +787,7 @@ impl TryFrom<RpkgResourceMeta> for ResourceMetadata {
 					Ok(ResourceReference {
 						resource: x.hash.parse().map_err(FromRpkgResourceMetaError::InvalidID)?,
 						flags: ReferenceFlags::from_any(
-							x.flag.parse::<u8>().map_err(FromRpkgResourceMetaError::InvalidFlag)?
+							u8::from_str_radix(&x.flag, 16).map_err(FromRpkgResourceMetaError::InvalidFlag)?
 						)
 					})
 				})
@@ -817,7 +817,7 @@ impl TryFrom<RpkgResourceMeta> for ExtendedResourceMetadata {
 						Ok(ResourceReference {
 							resource: x.hash.parse().map_err(FromRpkgResourceMetaError::InvalidID)?,
 							flags: ReferenceFlags::from_any(
-								x.flag.parse::<u8>().map_err(FromRpkgResourceMetaError::InvalidFlag)?
+								u8::from_str_radix(&x.flag, 16).map_err(FromRpkgResourceMetaError::InvalidFlag)?
 							)
 						})
 					})
