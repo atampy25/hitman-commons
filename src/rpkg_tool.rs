@@ -271,8 +271,7 @@ impl From<ResourceInfo> for RpkgResourceMeta {
 	fn from(info: ResourceInfo) -> RpkgResourceMeta {
 		RpkgResourceMeta {
 			hash_offset: info.data_offset(),
-			hash_size: (info.compressed_size().unwrap_or(0) | (if info.is_scrambled() { 0x80000000 } else { 0x0 }))
-				as u32,
+			hash_size: info.compressed_size().unwrap_or(0) | (if info.is_scrambled() { 0x80000000 } else { 0x0 }),
 			hash_size_final: info.size(),
 			hash_value: info.rrid().to_hex_string(),
 			hash_path: None,
@@ -286,8 +285,8 @@ impl From<ResourceInfo> for RpkgResourceMeta {
 					flag: format!(
 						"{:02X}",
 						match flag {
-							ResourceReferenceFlags::Legacy(x) => x,
-							ResourceReferenceFlags::Standard(x) => x
+							ResourceReferenceFlags::V1(x) => x.into_bits(),
+							ResourceReferenceFlags::V2(x) => x.into_bits()
 						}
 					),
 					hash: hash.to_hex_string()
@@ -304,8 +303,7 @@ impl From<&ResourceInfo> for RpkgResourceMeta {
 	fn from(info: &ResourceInfo) -> RpkgResourceMeta {
 		RpkgResourceMeta {
 			hash_offset: info.data_offset(),
-			hash_size: (info.compressed_size().unwrap_or(0) | (if info.is_scrambled() { 0x80000000 } else { 0x0 }))
-				as u32,
+			hash_size: info.compressed_size().unwrap_or(0) | (if info.is_scrambled() { 0x80000000 } else { 0x0 }),
 			hash_size_final: info.size(),
 			hash_value: info.rrid().to_hex_string(),
 			hash_path: None,
@@ -319,8 +317,8 @@ impl From<&ResourceInfo> for RpkgResourceMeta {
 					flag: format!(
 						"{:02X}",
 						match flag {
-							ResourceReferenceFlags::Legacy(x) => x,
-							ResourceReferenceFlags::Standard(x) => x
+							ResourceReferenceFlags::V1(x) => x.into_bits(),
+							ResourceReferenceFlags::V2(x) => x.into_bits()
 						}
 					),
 					hash: hash.to_hex_string()
