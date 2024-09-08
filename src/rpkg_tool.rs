@@ -285,8 +285,8 @@ impl From<ResourceInfo> for RpkgResourceMeta {
 					flag: format!(
 						"{:02X}",
 						match flag {
-							ResourceReferenceFlags::V1(x) => x.into_bits(),
-							ResourceReferenceFlags::V2(x) => x.into_bits()
+							ResourceReferenceFlags::Legacy(x) => x.into_bits(),
+							ResourceReferenceFlags::Standard(x) => x.into_bits()
 						}
 					),
 					hash: hash.to_hex_string()
@@ -317,8 +317,8 @@ impl From<&ResourceInfo> for RpkgResourceMeta {
 					flag: format!(
 						"{:02X}",
 						match flag {
-							ResourceReferenceFlags::V1(x) => x.into_bits(),
-							ResourceReferenceFlags::V2(x) => x.into_bits()
+							ResourceReferenceFlags::Legacy(x) => x.into_bits(),
+							ResourceReferenceFlags::Standard(x) => x.into_bits()
 						}
 					),
 					hash: hash.to_hex_string()

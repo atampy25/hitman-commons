@@ -792,9 +792,9 @@ checksum = "7a66a03ae7c801facd77a29370b4faec201768915ac14a721ba36f20bc9c209b"
 
 [[package]]
 name = "rpkg-rs"
-version = "1.1.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2ca1364ebb4bfe364c9b5e04f6f5cf6e652430c0222ecdc8186b77891a50caa"
+checksum = "3e05ea2869751fdcf7e14ebd3bae4b994a7079bee1f8f66b36b6d872f723f395"
 dependencies = [
  "binrw",
  "bitfield-struct",
@@ -1016,7 +1016,7 @@ dependencies = [
 [[package]]
 name = "tex-rs"
 version = "0.1.1"
-source = "git+https://github.com/dafitius/GlacierFormats-rs#7a16241f394c9aac13da0a1024cf5e6efe76e6cc"
+source = "git+https://github.com/dafitius/GlacierFormats-rs#f657c6482112e2be959750314b76bbf97e3ae9d1"
 dependencies = [
  "binrw",
  "bitfield-struct",
