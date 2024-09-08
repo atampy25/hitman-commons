@@ -157,18 +157,79 @@ impl From<RuntimeID> for rpkg_rs::resource::runtime_resource_id::RuntimeResource
 	}
 }
 
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ResourceReference {
 	pub resource: RuntimeID,
-
-	#[cfg_attr(feature = "serde", serde(flatten))]
-	#[cfg_attr(feature = "serde", serde(default))]
-	#[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_default_flags"))]
 	pub flags: ReferenceFlags
+}
+
+#[cfg(feature = "schemars")]
+impl schemars::JsonSchema for ResourceReference {
+	fn schema_name() -> String {
+		"ResourceReference".to_owned()
+	}
+
+	fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+		// Either a RuntimeID or a ReferenceWithFlags object
+
+		gen.subschema_for::<ResourceReferenceProxy>()
+	}
+}
+
+#[cfg(feature = "specta")]
+impl specta::Type for ResourceReference {
+	fn inline(type_map: &mut specta::TypeMap, generics: &[specta::DataType]) -> specta::DataType {
+		ResourceReferenceProxy::inline(type_map, generics)
+	}
+}
+
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(untagged))]
+enum ResourceReferenceProxy {
+	RuntimeID(RuntimeID),
+	ReferenceWithFlags {
+		resource: RuntimeID,
+
+		#[cfg_attr(feature = "serde", serde(flatten))]
+		flags: ReferenceFlags
+	}
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for ResourceReference {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: serde::Serializer
+	{
+		if is_default_flags(&self.flags) {
+			ResourceReferenceProxy::RuntimeID(self.resource).serialize(serializer)
+		} else {
+			ResourceReferenceProxy::ReferenceWithFlags {
+				resource: self.resource,
+				flags: self.flags.to_owned()
+			}
+			.serialize(serializer)
+		}
+	}
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for ResourceReference {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: serde::Deserializer<'de>
+	{
+		ResourceReferenceProxy::deserialize(deserializer).map(|x| match x {
+			ResourceReferenceProxy::RuntimeID(resource) => Self {
+				resource,
+				flags: Default::default()
+			},
+
+			ResourceReferenceProxy::ReferenceWithFlags { resource, flags } => Self { resource, flags }
+		})
+	}
 }
 
 #[cfg_attr(feature = "specta", derive(specta::Type))]
@@ -177,6 +238,7 @@ pub struct ResourceReference {
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ReferenceFlags {
+	#[cfg_attr(feature = "serde", serde(default))]
 	#[cfg_attr(feature = "serde", serde(rename = "type"))]
 	pub reference_type: ReferenceType,
 
@@ -313,8 +375,9 @@ impl ReferenceFlags {
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Default)]
 pub enum ReferenceType {
+	#[default]
 	Install,
 	Normal,
 	Weak,
