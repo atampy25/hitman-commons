@@ -330,9 +330,9 @@ impl ReferenceFlags {
 	pub fn from_modern(flag: u8) -> Self {
 		Self {
 			reference_type: match flag & 0b1100_0000 {
-				0 => ReferenceType::Install,
-				1 => ReferenceType::Normal,
-				2 => ReferenceType::Weak,
+				0b0000_0000 => ReferenceType::Install,
+				0b0100_0000 => ReferenceType::Normal,
+				0b1000_0000 => ReferenceType::Weak,
 				_ => ReferenceType::Normal
 			},
 			acquired: (flag & 0b0010_0000) != 0,
