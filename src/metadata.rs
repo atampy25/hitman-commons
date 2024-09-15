@@ -124,7 +124,7 @@ impl RuntimeID {
 	}
 
 	pub fn from_path(path: &str) -> Self {
-		let digest = md5::compute(path);
+		let digest = md5::compute(path.to_ascii_lowercase());
 
 		let mut val = 0u64;
 		for i in 1..8 {
