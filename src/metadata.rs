@@ -246,7 +246,7 @@ pub struct ReferenceFlags {
 	#[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_false"))]
 	pub acquired: bool,
 
-	#[cfg_attr(feature = "serde", serde(default))]
+	#[cfg_attr(feature = "serde", serde(default = "all_ones"))]
 	#[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_all_ones"))]
 	pub language_code: u8
 }
@@ -259,6 +259,11 @@ fn is_default_flags(val: &ReferenceFlags) -> bool {
 #[cfg(feature = "serde")]
 fn is_false(val: &bool) -> bool {
 	!val
+}
+
+#[cfg(feature = "serde")]
+fn all_ones() -> u8 {
+	0b0001_1111
 }
 
 #[cfg(feature = "serde")]
