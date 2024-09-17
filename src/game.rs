@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Display};
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -87,5 +89,34 @@ impl From<GameVersion> for tonytools::Version {
 			GameVersion::H2 => tonytools::Version::H2,
 			GameVersion::H3 => tonytools::Version::H3
 		}
+	}
+}
+
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[derive(PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
+pub enum GamePlatform {
+	Steam,
+	Epic,
+	GOG,
+	Microsoft
+}
+
+impl Display for GamePlatform {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			GamePlatform::Steam => write!(f, "Steam"),
+			GamePlatform::Epic => write!(f, "Epic Games"),
+			GamePlatform::GOG => write!(f, "GOG"),
+			GamePlatform::Microsoft => write!(f, "Microsoft")
+		}
+	}
+}
+
+impl Debug for GamePlatform {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", self)
 	}
 }

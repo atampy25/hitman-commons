@@ -7,3 +7,6 @@ pub mod resourcelib;
 
 #[cfg(feature = "hash_list")]
 pub mod hash_list;
+
+#[cfg(feature = "game_detection")]
+pub mod game_detection;
