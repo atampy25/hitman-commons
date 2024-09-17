@@ -1,4 +1,4 @@
-use core::str;
+use core::{fmt, str};
 use std::{
 	fmt::{Debug, Display},
 	io::{Cursor, Read, Seek, SeekFrom},
