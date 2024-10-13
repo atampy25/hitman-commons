@@ -32,6 +32,8 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 	module.ty::<ExtendedResourceMetadata>()?;
 	module.ty::<MetadataCalculationError>()?;
 	module.ty::<FromRpkgResourceMetaError>()?;
+
+	#[cfg(feature = "rpkg-rs")]
 	module.ty::<FromResourceInfoError>()?;
 
 	module
