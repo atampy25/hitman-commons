@@ -7,6 +7,18 @@ use tryvial::try_fn;
 
 use crate::metadata::{ResourceType, RuntimeID};
 
+#[cfg(feature = "rune")]
+#[try_fn]
+pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
+	let mut module = rune::Module::with_crate_item("hitman_commons", ["hash_list"])?;
+
+	module.ty::<HashList>()?;
+	module.ty::<HashData>()?;
+	module.ty::<DeserialisationError>()?;
+
+	module
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct DeserialisedHashList {
@@ -26,14 +38,51 @@ struct DeserialisedEntry {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
+#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::hash_list))]
+#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(
+	feature = "rune",
+	rune_functions(
+		Self::from_compressed__meta,
+		Self::to_path__meta,
+		Self::r_get_entry,
+		Self::r_insert_entry,
+		Self::r_remove_entry
+	)
+)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct HashList {
+	#[cfg_attr(feature = "rune", rune(get, set))]
 	pub version: u32,
+
 	pub entries: HashMap<RuntimeID, HashData>
+}
+
+#[cfg(feature = "rune")]
+impl HashList {
+	#[rune::function(instance, path = Self::get_entry)]
+	fn r_get_entry(&self, hash: &RuntimeID) -> Option<HashData> {
+		self.entries.get(hash).cloned()
+	}
+
+	#[rune::function(instance, path = Self::insert_entry)]
+	fn r_insert_entry(&mut self, hash: RuntimeID, data: HashData) {
+		self.entries.insert(hash, data);
+	}
+
+	#[rune::function(instance, path = Self::remove_entry)]
+	fn r_remove_entry(&mut self, hash: &RuntimeID) -> Option<HashData> {
+		self.entries.remove(hash)
+	}
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
+#[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
+#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::hash_list))]
+#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct HashData {
 	pub resource_type: ResourceType,
@@ -42,6 +91,10 @@ pub struct HashData {
 }
 
 #[derive(Error, Debug)]
+#[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
+#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::hash_list))]
+#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 pub enum DeserialisationError {
 	#[error("decompression failed: {0}")]
 	DecompressionFailed(#[from] std::io::Error),
@@ -52,6 +105,7 @@ pub enum DeserialisationError {
 
 impl HashList {
 	#[try_fn]
+	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::from_compressed))]
 	pub fn from_compressed(slice: &[u8]) -> Result<Self, DeserialisationError> {
 		let mut decompressed = vec![];
 
@@ -82,6 +136,7 @@ impl HashList {
 	}
 
 	/// Gets the path of a resource if possible; otherwise just returns the hash.
+	#[cfg_attr(feature = "rune", rune::function(keep))]
 	pub fn to_path(&self, hash: &RuntimeID) -> String {
 		if let Some(entry) = self.entries.get(hash) {
 			if let Some(path) = entry.path.as_ref() {

@@ -22,6 +22,9 @@ registry = { version = "1.2.3", optional = true }
 keyvalues-serde = { version = "0.2.1", optional = true }
 itertools = { version = "0.13.0", optional = true }
 home = { version = "0.5.9", optional = true }
+rune = { version = "0.13.4", optional = true }
+better-rune-derive = { path = "../better-rune-derive", optional = true }
+serde_with = { version = "3.11.0", optional = true }
 
 [features]
 schemars = ["dep:schemars"]
@@ -45,3 +48,4 @@ game_detection = [
     "dep:itertools",
     "dep:home",
 ]
+rune = ["dep:rune", "dep:better-rune-derive", "dep:serde_with"]

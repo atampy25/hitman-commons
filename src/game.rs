@@ -5,15 +5,39 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tryvial::try_fn;
 
+#[cfg(feature = "rune")]
+#[try_fn]
+pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
+	let mut module = rune::Module::with_crate_item("hitman_commons", ["game"])?;
+
+	module.ty::<GameVersion>()?;
+	module.ty::<GamePlatform>()?;
+
+	module
+}
+
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
+#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::game))]
+#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
 pub enum GameVersion {
 	H1,
 	H2,
 	H3
+}
+
+impl Display for GameVersion {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			GameVersion::H1 => write!(f, "HITMAN™"),
+			GameVersion::H2 => write!(f, "HITMAN 2"),
+			GameVersion::H3 => write!(f, "HITMAN 3")
+		}
+	}
 }
 
 #[cfg(feature = "rpkg-rs")]
@@ -96,7 +120,10 @@ impl From<GameVersion> for tonytools::Version {
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-#[derive(PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
+#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::game))]
+#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
 pub enum GamePlatform {
 	Steam,
 	Epic,
@@ -112,11 +139,5 @@ impl Display for GamePlatform {
 			GamePlatform::GOG => write!(f, "GOG"),
 			GamePlatform::Microsoft => write!(f, "Microsoft")
 		}
-	}
-}
-
-impl Debug for GamePlatform {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "{}", self)
 	}
 }

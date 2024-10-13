@@ -3,7 +3,22 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 use thiserror::Error;
 
+#[cfg(feature = "rune")]
+pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
+	let mut module = rune::Module::with_crate_item("hitman_commons", ["game_detection"])?;
+
+	module.function_meta(detect_installs__meta)?;
+	module.ty::<GameInstall>()?;
+	module.ty::<GameDetectionError>()?;
+
+	Ok(module)
+}
+
 #[derive(Error, Debug)]
+#[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
+#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::game_detection))]
+#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 pub enum GameDetectionError {
 	#[error("Couldn't get environment variable {0}: {1}")]
 	EnvVar(String, std::env::VarError),
@@ -32,14 +47,36 @@ struct SteamLibraryFolder {
 
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
+#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::game_detection))]
+#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_functions(Self::r_path, Self::r_set_path))]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct GameInstall {
+	#[cfg_attr(feature = "rune", rune(get, set))]
 	pub version: GameVersion,
+
+	#[cfg_attr(feature = "rune", rune(get, set))]
 	pub platform: GamePlatform,
+
 	pub path: PathBuf
 }
 
+#[cfg(feature = "rune")]
+impl GameInstall {
+	#[rune::function(instance, path = Self::path)]
+	fn r_path(&self) -> String {
+		self.path.to_string_lossy().into_owned()
+	}
+
+	#[rune::function(instance, path = Self::set_path)]
+	fn r_set_path(&mut self, path: String) {
+		self.path = PathBuf::from(path);
+	}
+}
+
+#[cfg_attr(feature = "rune", rune::function(keep))]
 pub fn detect_installs() -> Result<Vec<GameInstall>, GameDetectionError> {
 	detection::detect_installs()
 }
