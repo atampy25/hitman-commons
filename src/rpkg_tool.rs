@@ -60,14 +60,16 @@ impl RpkgResourceMeta {
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct RpkgResourceReference {
+	#[cfg_attr(feature = "rune", rune(get, set))]
 	pub hash: String,
+
+	#[cfg_attr(feature = "rune", rune(get, set))]
 	pub flag: String
 }
 
