@@ -37,6 +37,7 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_functions(Self::r_new))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct BlueprintSubEntity {
@@ -54,13 +55,32 @@ pub struct BlueprintSubEntity {
 	pub entity_subsets: Vec<(String, EntitySubset)>
 }
 
+#[cfg(feature = "rune")]
+impl BlueprintSubEntity {
+	#[rune::function(path = Self::new)]
+	fn r_new(
+		logical_parent: EntityReference,
+		entity_type_resource_index: usize,
+		entity_id: u64,
+		entity_name: String
+	) -> Self {
+		BlueprintSubEntity {
+			logical_parent,
+			entity_type_resource_index,
+			entity_id,
+			entity_name,
+			..Default::default()
+		}
+	}
+}
+
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
-#[cfg_attr(feature = "rune", rune_functions(Self::into_legacy__meta))]
+#[cfg_attr(feature = "rune", rune_functions(Self::into_legacy__meta, Self::r_new))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct EntityBlueprint {
@@ -76,12 +96,24 @@ pub struct EntityBlueprint {
 	pub pin_connection_override_deletes: Vec<ExternalPinConnection>
 }
 
+#[cfg(feature = "rune")]
+impl EntityBlueprint {
+	#[rune::function(path = Self::new)]
+	fn r_new(sub_type: i8) -> Self {
+		EntityBlueprint {
+			sub_type,
+			..Default::default()
+		}
+	}
+}
+
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct FactorySubEntity {
@@ -100,7 +132,7 @@ pub struct FactorySubEntity {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
-#[cfg_attr(feature = "rune", rune_functions(Self::into_legacy__meta))]
+#[cfg_attr(feature = "rune", rune_functions(Self::into_legacy__meta, Self::r_new))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct EntityFactory {
@@ -112,12 +144,24 @@ pub struct EntityFactory {
 	pub external_scene_type_indices_in_resource_header: Vec<usize>
 }
 
+#[cfg(feature = "rune")]
+impl EntityFactory {
+	#[rune::function(path = Self::new)]
+	fn r_new(sub_type: i8) -> Self {
+		EntityFactory {
+			sub_type,
+			..Default::default()
+		}
+	}
+}
+
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct EntityReference {
@@ -135,6 +179,7 @@ pub struct EntityReference {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct ExposedEntity {
@@ -149,6 +194,7 @@ pub struct ExposedEntity {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct PinConnection {
@@ -169,6 +215,7 @@ pub struct PinConnection {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct PlatformSpecificProperty {
@@ -183,6 +230,7 @@ pub struct PlatformSpecificProperty {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct PropertyAlias {
@@ -200,6 +248,7 @@ pub struct PropertyAlias {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct PropertyOverride {
@@ -213,6 +262,7 @@ pub struct PropertyOverride {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct EntitySubset {
@@ -225,6 +275,7 @@ pub struct EntitySubset {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct ExternalPinConnection {
@@ -241,6 +292,7 @@ pub struct ExternalPinConnection {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Property {
 	#[cfg_attr(feature = "serde", serde(rename = "nPropertyID"))]
@@ -299,6 +351,7 @@ impl PropertyValue {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", serde(untagged))]
 pub enum PropertyID {
@@ -312,6 +365,7 @@ pub enum PropertyID {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct FactorySubEntityLegacy {
@@ -327,7 +381,7 @@ pub struct FactorySubEntityLegacy {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
-#[cfg_attr(feature = "rune", rune_functions(Self::into_modern__meta))]
+#[cfg_attr(feature = "rune", rune_functions(Self::into_modern__meta, Self::r_new))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct EntityFactoryLegacy {
@@ -339,12 +393,24 @@ pub struct EntityFactoryLegacy {
 	pub external_scene_type_indices_in_resource_header: Vec<usize>
 }
 
+#[cfg(feature = "rune")]
+impl EntityFactoryLegacy {
+	#[rune::function(path = Self::new)]
+	fn r_new(sub_type: i8) -> Self {
+		EntityFactoryLegacy {
+			sub_type,
+			..Default::default()
+		}
+	}
+}
+
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_functions(Self::r_new))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct BlueprintSubEntityLegacy {
@@ -358,13 +424,32 @@ pub struct BlueprintSubEntityLegacy {
 	pub entity_subsets: Vec<(String, EntitySubset)>
 }
 
+#[cfg(feature = "rune")]
+impl BlueprintSubEntityLegacy {
+	#[rune::function(path = Self::new)]
+	fn r_new(
+		logical_parent: EntityReference,
+		entity_type_resource_index: usize,
+		entity_id: u64,
+		entity_name: String
+	) -> Self {
+		BlueprintSubEntityLegacy {
+			logical_parent,
+			entity_type_resource_index,
+			entity_id,
+			entity_name,
+			..Default::default()
+		}
+	}
+}
+
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
-#[cfg_attr(feature = "rune", rune_functions(Self::into_modern__meta))]
+#[cfg_attr(feature = "rune", rune_functions(Self::into_modern__meta, Self::r_new))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct EntityBlueprintLegacy {
@@ -378,12 +463,24 @@ pub struct EntityBlueprintLegacy {
 	pub override_deletes: Vec<EntityReference>
 }
 
+#[cfg(feature = "rune")]
+impl EntityBlueprintLegacy {
+	#[rune::function(path = Self::new)]
+	fn r_new(sub_type: i8) -> Self {
+		EntityBlueprintLegacy {
+			sub_type,
+			..Default::default()
+		}
+	}
+}
+
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct PinConnectionLegacy {

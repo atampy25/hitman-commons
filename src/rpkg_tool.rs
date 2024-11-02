@@ -31,6 +31,7 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_functions(Self::r_new))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct RpkgResourceMeta {
 	pub hash_offset: u64,
@@ -48,6 +49,14 @@ pub struct RpkgResourceMeta {
 	pub hash_path: Option<String>
 }
 
+#[cfg(feature = "rune")]
+impl RpkgResourceMeta {
+	#[rune::function(path = Self::new)]
+	pub fn r_new() -> Self {
+		Self::default()
+	}
+}
+
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -55,6 +64,7 @@ pub struct RpkgResourceMeta {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct RpkgResourceReference {
 	pub hash: String,

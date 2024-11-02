@@ -23,10 +23,16 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::game))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
 pub enum GameVersion {
+	#[cfg_attr(feature = "rune", rune(constructor))]
 	H1,
+
+	#[cfg_attr(feature = "rune", rune(constructor))]
 	H2,
+
+	#[cfg_attr(feature = "rune", rune(constructor))]
 	H3
 }
 
@@ -123,11 +129,19 @@ impl From<GameVersion> for tonytools::Version {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::game))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
 pub enum GamePlatform {
+	#[cfg_attr(feature = "rune", rune(constructor))]
 	Steam,
+
+	#[cfg_attr(feature = "rune", rune(constructor))]
 	Epic,
+
+	#[cfg_attr(feature = "rune", rune(constructor))]
 	GOG,
+
+	#[cfg_attr(feature = "rune", rune(constructor))]
 	Microsoft
 }
 

@@ -225,6 +225,7 @@ impl From<RuntimeID> for rpkg_rs::resource::runtime_resource_id::RuntimeResource
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ResourceReference {
 	pub resource: RuntimeID,
@@ -307,6 +308,7 @@ impl<'de> Deserialize<'de> for ResourceReference {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[cfg_attr(
 	feature = "rune",
 	rune_functions(
@@ -508,6 +510,7 @@ pub enum ReferenceType {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[cfg_attr(
 	feature = "rune",
 	rune_functions(Self::infer_scrambled__meta, Self::infer_compressed__meta, Self::to_extended__meta)
@@ -695,6 +698,7 @@ impl<'de> Visitor<'de> for ResMetaVisitor {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ExtendedResourceMetadata {
 	#[cfg_attr(feature = "serde", serde(flatten))]

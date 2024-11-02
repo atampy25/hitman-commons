@@ -83,6 +83,7 @@ impl HashList {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::hash_list))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct HashData {
 	pub resource_type: ResourceType,
