@@ -15,6 +15,7 @@ pub mod game_detection;
 pub fn rune_install(ctx: &mut rune::Context, allow_dangerous: bool) -> Result<(), rune::ContextError> {
 	ctx.install(game::rune_module()?)?;
 	ctx.install(metadata::rune_module()?)?;
+	ctx.install(rpkg_tool::rune_module()?)?;
 
 	#[cfg(feature = "resourcelib")]
 	ctx.install(resourcelib::rune_module()?)?;

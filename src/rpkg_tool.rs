@@ -14,7 +14,23 @@ use crate::metadata::{ExtendedResourceMetadata, FromStrError, RuntimeID};
 #[cfg(feature = "hash_list")]
 use crate::hash_list::HashData;
 
+#[cfg(feature = "rune")]
+#[try_fn]
+pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
+	let mut module = rune::Module::with_crate_item("hitman_commons", ["rpkg_tool"])?;
+
+	module.ty::<RpkgResourceMeta>()?;
+	module.ty::<RpkgResourceReference>()?;
+	module.ty::<RpkgInteropError>()?;
+
+	module
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
+#[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
+#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
+#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct RpkgResourceMeta {
 	pub hash_offset: u64,
@@ -35,6 +51,10 @@ pub struct RpkgResourceMeta {
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
+#[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
+#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
+#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct RpkgResourceReference {
 	pub hash: String,
@@ -44,6 +64,10 @@ pub struct RpkgResourceReference {
 type Result<T, E = RpkgInteropError> = std::result::Result<T, E>;
 
 #[derive(Error, Debug)]
+#[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
+#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
+#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune(constructor))]
 pub enum RpkgInteropError {
 	#[error("seek error: {0}")]
 	Seek(#[from] std::io::Error),
