@@ -50,7 +50,8 @@ struct SteamLibraryFolder {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::game_detection))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
-#[cfg_attr(feature = "rune", rune_functions(Self::r_path, Self::r_set_path))]
+#[cfg_attr(feature = "rune", rune(install_with = Self::rune_install))]
+#[cfg_attr(feature = "rune", rune(constructor_fn = Self::rune_construct))]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct GameInstall {
@@ -65,14 +66,24 @@ pub struct GameInstall {
 
 #[cfg(feature = "rune")]
 impl GameInstall {
-	#[rune::function(instance, path = Self::path)]
-	fn r_path(&self) -> String {
-		self.path.to_string_lossy().into_owned()
+	fn rune_construct(version: GameVersion, platform: GamePlatform, path: String) -> Self {
+		Self {
+			version,
+			platform,
+			path: PathBuf::from(path)
+		}
 	}
 
-	#[rune::function(instance, path = Self::set_path)]
-	fn r_set_path(&mut self, path: String) {
-		self.path = PathBuf::from(path);
+	fn rune_install(module: &mut rune::Module) -> Result<(), rune::ContextError> {
+		module.field_function(rune::runtime::Protocol::GET, "path", |s: &Self| {
+			s.path.to_string_lossy().to_string()
+		})?;
+
+		module.field_function(rune::runtime::Protocol::SET, "path", |s: &mut Self, value: String| {
+			s.path = PathBuf::from(value);
+		})?;
+
+		Ok(())
 	}
 }
 

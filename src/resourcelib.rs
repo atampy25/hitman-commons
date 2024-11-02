@@ -255,7 +255,8 @@ pub struct Property {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::resourcelib))]
 #[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
-#[cfg_attr(feature = "rune", rune_functions(Self::r_value, Self::r_set_value))]
+#[cfg_attr(feature = "rune", rune(install_with = Self::rune_install))]
+#[cfg_attr(feature = "rune", rune(constructor_fn = Self::rune_construct))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct PropertyValue {
 	#[cfg_attr(feature = "serde", serde(rename = "$type"))]
@@ -268,14 +269,27 @@ pub struct PropertyValue {
 
 #[cfg(feature = "rune")]
 impl PropertyValue {
-	#[rune::function(instance, path = Self::value)]
-	pub fn r_value(&self) -> rune::Value {
-		serde_json::from_value(self.property_value.to_owned()).unwrap()
+	fn rune_construct(property_type: String, property_value: rune::Value) -> Self {
+		PropertyValue {
+			property_type,
+			property_value: serde_json::to_value(property_value).unwrap_or(serde_json::Value::Null)
+		}
 	}
 
-	#[rune::function(instance, path = Self::set_value)]
-	pub fn r_set_value(&mut self, value: rune::Value) {
-		self.property_value = serde_json::to_value(value).unwrap();
+	fn rune_install(module: &mut rune::Module) -> Result<(), rune::ContextError> {
+		module.field_function(rune::runtime::Protocol::GET, "property_value", |s: &Self| {
+			serde_json::from_value::<rune::Value>(s.property_value.clone()).ok()
+		})?;
+
+		module.field_function(
+			rune::runtime::Protocol::SET,
+			"property_value",
+			|s: &mut Self, property_value: rune::Value| {
+				s.property_value = serde_json::to_value(property_value).unwrap_or(serde_json::Value::Null);
+			}
+		)?;
+
+		Ok(())
 	}
 }
 
