@@ -460,7 +460,7 @@ mod detection {
 					steam_path.join("steamapps").join("libraryfolders.vdf")
 				};
 
-				if let Ok(s) = fs::read_to_string(&steam_path) {
+				if let Ok(s) = fs::read_to_string(&libraryfolders_path) {
 					let folders: HashMap<String, SteamLibraryFolder> = keyvalues_serde::from_str(&s).map_err(|x| {
 						GameDetectionError::VdfDeserialisation(libraryfolders_path.to_string_lossy().into(), x.into())
 					})?;
