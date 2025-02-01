@@ -215,17 +215,6 @@ dependencies = [
 
 [[package]]
 name = "bitfield-struct"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de05f8756f1c68937349406d4632ae96ae35901019b5e59c508d9c38c64715fb"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.96",
-]
-
-[[package]]
-name = "bitfield-struct"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2869c63ccf4f8bf0d485070b880e60e097fb7aeea80ee82a0a94a957e372a0b"
@@ -594,6 +583,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "glacier-texture"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a611a7672913a6fdc218f9fc014ef993aad7c1fa435b8debafe64af3eabf6a4"
+dependencies = [
+ "binrw",
+ "bitfield-struct",
+ "directxtex",
+ "lz4",
+ "serde",
+ "thiserror 2.0.11",
+]
+
+[[package]]
 name = "glob"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -640,6 +643,7 @@ version = "0.1.0"
 dependencies = [
  "better-rune-derive",
  "brotli-decompressor",
+ "glacier-texture",
  "hashbrown 0.14.5",
  "home",
  "itertools",
@@ -655,7 +659,6 @@ dependencies = [
  "serde_json",
  "serde_with",
  "specta",
- "tex-rs",
  "thiserror 1.0.69",
  "tonytools",
  "tryvial",
@@ -1220,7 +1223,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0132059dad76555c214ae82c15d1ba6ee1eb68916b790b74af4769122fa7e663"
 dependencies = [
  "binrw",
- "bitfield-struct 0.9.5",
+ "bitfield-struct",
  "byteorder",
  "crc32fast",
  "extended-tea",
@@ -1556,19 +1559,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "tex-rs"
-version = "0.1.1"
-source = "git+https://github.com/dafitius/GlacierFormats-rs#7fa9164b4cbe5d928ae37ce500f97f9cf73ee773"
-dependencies = [
- "binrw",
- "bitfield-struct 0.8.0",
- "directxtex",
- "lz4",
- "rpkg-rs",
- "thiserror 1.0.69",
 ]
 
 [[package]]

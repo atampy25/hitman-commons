@@ -1157,7 +1157,10 @@ impl ResourceMetadata {
 
 				"ALOC" | "FXAC" | "FXAS" | "MJBA" | "MRTN" | "MRTR" | "PREL" | "SCDA" | "YSHP" => 0,
 
-				"BOXC" | "HIKC" | "IMAP" | "SLMX" | "TEXD" | "TEXT" => todo!(),
+				// FIXME: Need to compute an actual estimate/use glacier-texture to get the real value
+				"TEXT" | "TEXD" => 0,
+
+				"BOXC" | "HIKC" | "IMAP" | "SLMX" => todo!(),
 
 				_ => return Err(MetadataCalculationError::UnknownResourceType(self.resource_type))
 			},
