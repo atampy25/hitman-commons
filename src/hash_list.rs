@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tryvial::try_fn;
 
-use crate::metadata::{ResourceType, RuntimeID};
+use crate::metadata::{PathedID, ResourceType, RuntimeID};
 
 #[cfg(feature = "rune")]
 #[try_fn]
@@ -46,6 +46,7 @@ struct DeserialisedEntry {
 	rune_functions(
 		Self::from_compressed__meta,
 		Self::to_path__meta,
+		Self::to_pathed_id__meta,
 		Self::r_get_entry,
 		Self::r_insert_entry,
 		Self::r_remove_entry
@@ -146,5 +147,17 @@ impl HashList {
 		}
 
 		hash.to_string()
+	}
+
+	/// Converts the hash to a PathedID.
+	#[cfg_attr(feature = "rune", rune::function(keep))]
+	pub fn to_pathed_id(&self, hash: &RuntimeID) -> PathedID {
+		if let Some(entry) = self.entries.get(hash) {
+			if let Some(path) = entry.path.as_ref() {
+				return PathedID::Path(path.to_owned());
+			}
+		}
+
+		PathedID::Unknown(*hash)
 	}
 }

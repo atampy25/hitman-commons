@@ -9,7 +9,7 @@ use tryvial::try_fn;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::metadata::{ExtendedResourceMetadata, FromStrError, RuntimeID};
+use crate::metadata::{ExtendedResourceMetadata, RuntimeID, RuntimeIDFromStrError};
 
 #[cfg(feature = "hash_list")]
 use crate::hash_list::HashData;
@@ -91,7 +91,7 @@ pub enum RpkgInteropError {
 	InvalidHex(#[from] std::num::ParseIntError),
 
 	#[error("invalid ResourceID: {0}")]
-	InvalidResourceID(#[from] FromStrError)
+	InvalidResourceID(#[from] RuntimeIDFromStrError)
 }
 
 impl RpkgResourceMeta {
