@@ -17,7 +17,10 @@ use {crate::hash_list::HashData, hashbrown::HashMap};
 use thiserror::Error;
 use tryvial::try_fn;
 
-use crate::rpkg_tool::{RpkgInteropError, RpkgResourceMeta};
+use crate::{
+	game::GameVersion,
+	rpkg_tool::{RpkgInteropError, RpkgResourceMeta}
+};
 
 #[cfg(feature = "rune")]
 #[try_fn]
@@ -1112,13 +1115,21 @@ pub enum MetadataCalculationError {
 	Seek(#[from] std::io::Error),
 
 	#[error("unknown resource type {0}")]
-	UnknownResourceType(ResourceType)
+	UnknownResourceType(ResourceType),
+
+	#[cfg(feature = "glacier-texture")]
+	#[error("texture parsing error: {0}")]
+	TextureMapError(glacier_texture::texture_map::TextureMapError)
 }
 
 impl ResourceMetadata {
 	#[try_fn]
 	#[cfg_attr(feature = "rune", rune::function(keep))]
-	pub fn to_extended(self, data: &[u8]) -> Result<ExtendedResourceMetadata, MetadataCalculationError> {
+	pub fn to_extended(
+		self,
+		data: &[u8],
+		game_version: GameVersion
+	) -> Result<ExtendedResourceMetadata, MetadataCalculationError> {
 		ExtendedResourceMetadata {
 			system_memory_requirement: match self.resource_type.as_ref() {
 				"AIBX" | "AIBZ" | "AIRG" | "ASEB" | "ASET" | "ASVA" | "ATMD" | "BLOB" | "BMSK" | "BORG" | "BOXC"
@@ -1157,8 +1168,37 @@ impl ResourceMetadata {
 
 				"ALOC" | "FXAC" | "FXAS" | "MJBA" | "MRTN" | "MRTR" | "PREL" | "SCDA" | "YSHP" => 0,
 
-				// FIXME: Need to compute an actual estimate/use glacier-texture to get the real value
-				"TEXT" | "TEXD" => 0,
+				"TEXT" => {
+					#[cfg(feature = "glacier-texture")]
+					{
+						// NOTE: This is not fully accurate. In HITMAN 3, the TEXD data is required to calculate this, so it will just return 0.
+						glacier_texture::texture_map::TextureMap::from_memory(data, game_version.into())
+							.map_err(MetadataCalculationError::TextureMapError)?
+							.video_memory_requirement() as u32
+					}
+
+					#[cfg(not(feature = "glacier-texture"))]
+					{
+						// TODO: Calculate a proper estimate
+						0
+					}
+				}
+
+				"TEXD" => {
+					#[cfg(feature = "glacier-texture")]
+					{
+						// This is accurate across game versions.
+						glacier_texture::mipblock::MipblockData::from_memory(data, game_version.into())
+							.map_err(MetadataCalculationError::TextureMapError)?
+							.video_memory_requirement() as u32
+					}
+
+					#[cfg(not(feature = "glacier-texture"))]
+					{
+						// TODO: Calculate a proper estimate
+						0
+					}
+				}
 
 				"BOXC" | "HIKC" | "IMAP" | "SLMX" => todo!(),
 
