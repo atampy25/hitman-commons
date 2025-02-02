@@ -54,10 +54,24 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 	feature = "rune",
 	rune_functions(Self::r_get_path, Self::get_id__meta, Self::r_from_str)
 )]
-#[derive(PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
+#[derive(Clone)]
 pub enum PathedID {
 	Path(String),
 	Unknown(RuntimeID)
+}
+
+impl PartialEq for PathedID {
+	fn eq(&self, other: &Self) -> bool {
+		self.get_id() == other.get_id()
+	}
+}
+
+impl Eq for PathedID {}
+
+impl std::hash::Hash for PathedID {
+	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+		self.get_id().hash(state)
+	}
 }
 
 #[derive(Error, Debug)]
