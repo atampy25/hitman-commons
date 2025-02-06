@@ -206,11 +206,12 @@ checksum = "349f9b6a179ed607305526ca489b34ad0a41aed5f7980fa90eb03160b69598fb"
 
 [[package]]
 name = "bitchomp"
-version = "0.2.8"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a974eb7363fab27fba2bc287a7ff47ab455f3656b09d30c85eaa7529d2cc8171"
+checksum = "197bd7cb670a9b8b7238f62558f3c1823cd399795d70590a7bdfe7787073d2d5"
 dependencies = [
  "num-traits",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -218,6 +219,17 @@ name = "bitfield-struct"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2869c63ccf4f8bf0d485070b880e60e097fb7aeea80ee82a0a94a957e372a0b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
+]
+
+[[package]]
+name = "bitfield-struct"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2be5a46ba01b60005ae2c51a36a29cfe134bcacae2dd5cedcd4615fbaad1494b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -589,7 +601,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a611a7672913a6fdc218f9fc014ef993aad7c1fa435b8debafe64af3eabf6a4"
 dependencies = [
  "binrw",
- "bitfield-struct",
+ "bitfield-struct 0.9.5",
  "directxtex",
  "lz4",
  "serde",
@@ -646,7 +658,7 @@ dependencies = [
  "glacier-texture",
  "hashbrown 0.14.5",
  "home",
- "itertools",
+ "itertools 0.13.0",
  "keyvalues-serde",
  "md5",
  "registry",
@@ -735,6 +747,15 @@ name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]
@@ -851,9 +872,9 @@ dependencies = [
 
 [[package]]
 name = "lzzzz"
-version = "1.1.0"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac94cca0c9c2ac03c63092f1377df5b83e4c35441f9d83a53ca214c58685f7bd"
+checksum = "fb42ba2edf1f0491b2e2c85fd49cf2a7adad3cab92ea0e29bff82d6fdafcefda"
 dependencies = [
  "cc",
 ]
@@ -1218,17 +1239,17 @@ dependencies = [
 
 [[package]]
 name = "rpkg-rs"
-version = "1.1.2"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0132059dad76555c214ae82c15d1ba6ee1eb68916b790b74af4769122fa7e663"
+checksum = "8154a673670affb5e5c931b8c5ea25b1c6a2b35b870ea18bf49e63af3cb7d84b"
 dependencies = [
  "binrw",
- "bitfield-struct",
+ "bitfield-struct 0.10.1",
  "byteorder",
  "crc32fast",
  "extended-tea",
  "indexmap 2.7.1",
- "itertools",
+ "itertools 0.14.0",
  "lazy-regex",
  "lzzzz",
  "md-5",
@@ -1237,7 +1258,7 @@ dependencies = [
  "rayon",
  "serde",
  "serde-hex",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -1634,8 +1655,9 @@ dependencies = [
 
 [[package]]
 name = "tonytools"
-version = "0.5.3"
-source = "git+https://github.com/AnthonyFuller/tonytools-rs#0ce392db878b7461b464ae08254bbd8695eda5ff"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ead9c61152e56c7601baf0d0f88af6505b4a0f65b30c172e727a7388ae00cbf6"
 dependencies = [
  "bimap",
  "bitchomp",
@@ -1653,6 +1675,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum_macros",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
