@@ -68,24 +68,24 @@ impl From<GameVersion> for rpkg_rs::WoaVersion {
 	}
 }
 
-#[cfg(feature = "tex-rs")]
-impl From<tex_rs::WoaVersion> for GameVersion {
-	fn from(value: tex_rs::WoaVersion) -> Self {
+#[cfg(feature = "glacier-texture")]
+impl From<glacier_texture::WoaVersion> for GameVersion {
+	fn from(value: glacier_texture::WoaVersion) -> Self {
 		match value {
-			tex_rs::WoaVersion::HM2016 => GameVersion::H1,
-			tex_rs::WoaVersion::HM2 => GameVersion::H2,
-			tex_rs::WoaVersion::HM3 => GameVersion::H3
+			glacier_texture::WoaVersion::HM2016 => GameVersion::H1,
+			glacier_texture::WoaVersion::HM2 => GameVersion::H2,
+			glacier_texture::WoaVersion::HM3 => GameVersion::H3
 		}
 	}
 }
 
-#[cfg(feature = "tex-rs")]
-impl From<GameVersion> for tex_rs::WoaVersion {
+#[cfg(feature = "glacier-texture")]
+impl From<GameVersion> for glacier_texture::WoaVersion {
 	fn from(value: GameVersion) -> Self {
 		match value {
-			GameVersion::H1 => tex_rs::WoaVersion::HM2016,
-			GameVersion::H2 => tex_rs::WoaVersion::HM2,
-			GameVersion::H3 => tex_rs::WoaVersion::HM3
+			GameVersion::H1 => glacier_texture::WoaVersion::HM2016,
+			GameVersion::H2 => glacier_texture::WoaVersion::HM2,
+			GameVersion::H3 => glacier_texture::WoaVersion::HM3
 		}
 	}
 }

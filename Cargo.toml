@@ -15,7 +15,6 @@ specta = { version = "=2.0.0-rc.7", optional = true }
 brotli-decompressor = { version = "4.0.1", optional = true }
 serde-smile = { version = "0.2.1", optional = true }
 hashbrown = { version = "0.14.5", features = ["serde"], optional = true }
-tex-rs = { git = "https://github.com/dafitius/GlacierFormats-rs", optional = true }
 tonytools = { git = "https://github.com/AnthonyFuller/tonytools-rs", optional = true }
 schemars = { version = "0.8.21", optional = true }
 registry = { version = "1.2.3", optional = true }
@@ -25,11 +24,12 @@ home = { version = "0.5.9", optional = true }
 rune = { version = "0.13.4", optional = true }
 better-rune-derive = { git = "https://github.com/atampy25/better-rune-derive", optional = true }
 serde_with = { version = "3.11.0", optional = true }
+glacier-texture = { version = "1.0.0", optional = true, default-features = false }
 
 [features]
 schemars = ["dep:schemars"]
 rpkg-rs = ["dep:rpkg-rs"]
-tex-rs = ["dep:tex-rs"]
+glacier-texture = ["dep:glacier-texture"]
 tonytools = ["dep:tonytools"]
 serde = ["dep:serde", "dep:serde-hex"]
 resourcelib = ["dep:serde_json"]
