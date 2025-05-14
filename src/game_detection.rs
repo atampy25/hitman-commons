@@ -17,8 +17,7 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::game_detection))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
-#[cfg_attr(feature = "rune", rune(constructor))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum GameDetectionError {
 	#[error("Couldn't get environment variable {0}: {1}")]
 	EnvVar(String, std::env::VarError),
@@ -49,7 +48,7 @@ struct SteamLibraryFolder {
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::game_detection))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT))]
 #[cfg_attr(feature = "rune", rune(install_with = Self::rune_install))]
 #[cfg_attr(feature = "rune", rune(constructor_fn = Self::rune_construct))]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
@@ -75,11 +74,11 @@ impl GameInstall {
 	}
 
 	fn rune_install(module: &mut rune::Module) -> Result<(), rune::ContextError> {
-		module.field_function(rune::runtime::Protocol::GET, "path", |s: &Self| {
+		module.field_function(&rune::runtime::Protocol::GET, "path", |s: &Self| {
 			s.path.to_string_lossy().to_string()
 		})?;
 
-		module.field_function(rune::runtime::Protocol::SET, "path", |s: &mut Self, value: String| {
+		module.field_function(&rune::runtime::Protocol::SET, "path", |s: &mut Self, value: String| {
 			s.path = PathBuf::from(value);
 		})?;
 

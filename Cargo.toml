@@ -21,7 +21,7 @@ registry = { version = "1.2.3", optional = true }
 keyvalues-serde = { version = "0.2.1", optional = true }
 itertools = { version = "0.13.0", optional = true }
 home = { version = "0.5.9", optional = true }
-rune = { version = "0.13.4", optional = true }
+rune = { git = "https://github.com/rune-rs/rune", rev = "a8c4f97", optional = true }
 better-rune-derive = { git = "https://github.com/atampy25/better-rune-derive", optional = true }
 serde_with = { version = "3.11.0", optional = true }
 glacier-texture = { version = "1.0.0", optional = true, default-features = false }

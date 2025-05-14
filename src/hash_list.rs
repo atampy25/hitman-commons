@@ -40,7 +40,7 @@ struct DeserialisedEntry {
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::hash_list))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT))]
 #[cfg_attr(
 	feature = "rune",
 	rune_functions(
@@ -83,7 +83,7 @@ impl HashList {
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::hash_list))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct HashData {
@@ -95,8 +95,7 @@ pub struct HashData {
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::hash_list))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
-#[cfg_attr(feature = "rune", rune(constructor))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum DeserialisationError {
 	#[error("decompression failed: {0}")]
 	DecompressionFailed(#[from] std::io::Error),

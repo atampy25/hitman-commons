@@ -49,7 +49,7 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 #[cfg_attr(
 	feature = "rune",
 	rune_functions(Self::r_get_path, Self::get_id__meta, Self::r_from_str)
@@ -77,8 +77,7 @@ impl std::hash::Hash for PathedID {
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune(constructor))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum PathedIDFromStrError {
 	#[error("invalid RuntimeID: {0}")]
 	InvalidRuntimeID(#[from] RuntimeIDFromStrError)
@@ -262,7 +261,7 @@ impl schemars::JsonSchema for PathedID {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 #[cfg_attr(
 	feature = "rune",
 	rune_functions(
@@ -309,8 +308,7 @@ impl schemars::JsonSchema for RuntimeID {
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune(constructor))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum FromU64Error {
 	#[error("value too high; must be less than 00FFFFFFFFFFFFFF")]
 	TooHigh
@@ -338,8 +336,7 @@ impl From<RuntimeID> for u64 {
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune(constructor))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum RuntimeIDFromStrError {
 	#[error("invalid u64: {0}")]
 	InvalidNumber(#[from] std::num::ParseIntError),
@@ -444,7 +441,7 @@ impl From<RuntimeID> for rpkg_rs::resource::runtime_resource_id::RuntimeResource
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ResourceReference {
@@ -527,7 +524,7 @@ impl<'de> Deserialize<'de> for ResourceReference {
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[cfg_attr(
 	feature = "rune",
@@ -702,8 +699,7 @@ impl ReferenceFlags {
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
-#[cfg_attr(feature = "rune", rune(constructor))]
+#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Default)]
 pub enum ReferenceType {
 	#[default]
@@ -730,7 +726,7 @@ pub enum ReferenceType {
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[cfg_attr(
 	feature = "rune",
@@ -918,7 +914,7 @@ impl<'de> Visitor<'de> for ResMetaVisitor {
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ExtendedResourceMetadata {
@@ -931,7 +927,7 @@ pub struct ExtendedResourceMetadata {
 
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 #[derive(PartialEq, Eq, Clone, Copy, Hash)]
 pub struct ResourceType([u8; 4]);
 
@@ -1028,8 +1024,7 @@ impl From<ResourceType> for Vec<u8> {
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
-#[cfg_attr(feature = "rune", rune(constructor))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum ResourceTypeError {
 	#[error("invalid length")]
 	InvalidLength,
@@ -1122,8 +1117,7 @@ impl PartialEq<String> for ResourceType {
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
-#[cfg_attr(feature = "rune", rune(constructor))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum MetadataCalculationError {
 	#[error("seek error: {0}")]
 	Seek(#[from] std::io::Error),
@@ -1266,8 +1260,7 @@ impl ResourceMetadata {
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
-#[cfg_attr(feature = "rune", rune(constructor))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum FromRpkgResourceMetaError {
 	#[error("couldn't normalise hashes: {0}")]
 	HashNormalisation(RpkgInteropError),
@@ -1351,8 +1344,7 @@ use rpkg_rs::resource::resource_info::ResourceInfo;
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
-#[cfg_attr(feature = "rune", rune(constructor))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum FromResourceInfoError {
 	#[error("invalid RuntimeID: {0}")]
 	InvalidID(#[from] RuntimeIDFromStrError),

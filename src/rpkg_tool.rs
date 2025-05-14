@@ -30,7 +30,7 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT))]
 #[cfg_attr(feature = "rune", rune_functions(Self::r_new))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct RpkgResourceMeta {
@@ -62,7 +62,7 @@ impl RpkgResourceMeta {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DEBUG))]
+#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct RpkgResourceReference {
@@ -78,8 +78,7 @@ type Result<T, E = RpkgInteropError> = std::result::Result<T, E>;
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
-#[cfg_attr(feature = "rune", rune_derive(STRING_DISPLAY, STRING_DEBUG))]
-#[cfg_attr(feature = "rune", rune(constructor))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum RpkgInteropError {
 	#[error("seek error: {0}")]
 	Seek(#[from] std::io::Error),
