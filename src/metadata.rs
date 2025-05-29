@@ -49,7 +49,7 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT, PARTIAL_EQ, EQ))]
 #[cfg_attr(
 	feature = "rune",
 	rune_functions(Self::r_get_path, Self::get_id__meta, Self::r_from_str)
@@ -261,7 +261,7 @@ impl schemars::JsonSchema for PathedID {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT, PARTIAL_EQ, EQ))]
 #[cfg_attr(
 	feature = "rune",
 	rune_functions(
@@ -441,7 +441,7 @@ impl From<RuntimeID> for rpkg_rs::resource::runtime_resource_id::RuntimeResource
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT))]
+#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ResourceReference {
@@ -524,7 +524,7 @@ impl<'de> Deserialize<'de> for ResourceReference {
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT))]
+#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[cfg_attr(
 	feature = "rune",
@@ -699,7 +699,7 @@ impl ReferenceFlags {
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT))]
+#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Default)]
 pub enum ReferenceType {
 	#[default]
@@ -726,7 +726,7 @@ pub enum ReferenceType {
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT))]
+#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[cfg_attr(
 	feature = "rune",
@@ -914,7 +914,7 @@ impl<'de> Visitor<'de> for ResMetaVisitor {
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT))]
+#[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ExtendedResourceMetadata {
@@ -927,7 +927,7 @@ pub struct ExtendedResourceMetadata {
 
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT, PARTIAL_EQ, EQ))]
 #[derive(PartialEq, Eq, Clone, Copy, Hash)]
 pub struct ResourceType([u8; 4]);
 
