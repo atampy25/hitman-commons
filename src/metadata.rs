@@ -35,6 +35,7 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 	module.ty::<ResourceReference>()?;
 	module.ty::<ReferenceFlags>()?;
 	module.ty::<ReferenceType>()?;
+	module.ty::<ResourceType>()?;
 	module.ty::<ResourceTypeError>()?;
 	module.ty::<ResourceMetadata>()?;
 	module.ty::<ExtendedResourceMetadata>()?;
@@ -927,6 +928,7 @@ pub struct ExtendedResourceMetadata {
 
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
+#[cfg_attr(feature = "rune", rune_functions(Self::r_from_str, Self::r_as_string))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT, PARTIAL_EQ, EQ))]
 #[derive(PartialEq, Eq, Clone, Copy, Hash)]
 pub struct ResourceType([u8; 4]);
@@ -1111,6 +1113,19 @@ impl PartialEq<&str> for ResourceType {
 impl PartialEq<String> for ResourceType {
 	fn eq(&self, other: &String) -> bool {
 		self.0 == other.as_bytes()
+	}
+}
+
+#[cfg(feature = "rune")]
+impl ResourceType {
+	#[rune::function(path = Self::from_str)]
+	fn r_from_str(s: &str) -> Result<Self, ResourceTypeError> {
+		Self::try_from(s)
+	}
+
+	#[rune::function(instance, path = Self::as_string)]
+	fn r_as_string(&self) -> String {
+		(*self).into()
 	}
 }
 
