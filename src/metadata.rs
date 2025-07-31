@@ -17,10 +17,7 @@ use {crate::hash_list::HashData, hashbrown::HashMap};
 use thiserror::Error;
 use tryvial::try_fn;
 
-use crate::{
-	game::GameVersion,
-	rpkg_tool::{RpkgInteropError, RpkgResourceMeta}
-};
+use crate::{game::GameVersion, rpkg_tool::RpkgResourceMeta};
 
 #[cfg(feature = "rune")]
 #[try_fn]
@@ -57,8 +54,11 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 )]
 #[derive(Clone)]
 pub enum PathedID {
-	Path(String),
-	Unknown(RuntimeID)
+	#[cfg_attr(feature = "rune", rune(constructor))]
+	Path(#[cfg_attr(feature = "rune", rune(get, set))] String),
+
+	#[cfg_attr(feature = "rune", rune(constructor))]
+	Unknown(#[cfg_attr(feature = "rune", rune(get, set))] RuntimeID)
 }
 
 impl PartialEq for PathedID {
@@ -105,7 +105,7 @@ impl PathedID {
 		}
 	}
 
-	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::get_id))]
+	#[cfg_attr(feature = "rune", rune::function(keep, instance, path = Self::get_id))]
 	pub fn get_id(&self) -> RuntimeID {
 		match self {
 			PathedID::Path(path) => RuntimeID::from_path(path),
@@ -1277,9 +1277,6 @@ impl ResourceMetadata {
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum FromRpkgResourceMetaError {
-	#[error("couldn't normalise hashes: {0}")]
-	HashNormalisation(RpkgInteropError),
-
 	#[error("invalid resource: {0}")]
 	InvalidID(#[from] PathedIDFromStrError),
 
@@ -1294,10 +1291,7 @@ impl TryFrom<RpkgResourceMeta> for ResourceMetadata {
 	type Error = FromRpkgResourceMetaError;
 
 	#[try_fn]
-	fn try_from(mut meta: RpkgResourceMeta) -> Result<Self, Self::Error> {
-		meta.normalise_hashes()
-			.map_err(FromRpkgResourceMetaError::HashNormalisation)?;
-
+	fn try_from(meta: RpkgResourceMeta) -> Result<Self, Self::Error> {
 		Self {
 			id: meta.hash_value.parse().map_err(FromRpkgResourceMetaError::InvalidID)?,
 			resource_type: meta.hash_resource_type.try_into()?,
@@ -1323,10 +1317,7 @@ impl TryFrom<RpkgResourceMeta> for ExtendedResourceMetadata {
 	type Error = FromRpkgResourceMetaError;
 
 	#[try_fn]
-	fn try_from(mut meta: RpkgResourceMeta) -> Result<Self, Self::Error> {
-		meta.normalise_hashes()
-			.map_err(FromRpkgResourceMetaError::HashNormalisation)?;
-
+	fn try_from(meta: RpkgResourceMeta) -> Result<Self, Self::Error> {
 		Self {
 			core_info: ResourceMetadata {
 				id: meta.hash_value.parse().map_err(FromRpkgResourceMetaError::InvalidID)?,
