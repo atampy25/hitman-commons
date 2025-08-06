@@ -6,7 +6,7 @@ use std::{
 };
 
 #[cfg(feature = "serde")]
-use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Serialize};
+use serde::{de::Visitor, Deserialize, Serialize};
 
 #[cfg(feature = "serde")]
 use serde_hex::{SerHex, StrictCap};
@@ -775,29 +775,36 @@ impl ResourceMetadata {
 }
 
 #[cfg(feature = "serde")]
+#[derive(Serialize, Deserialize)]
+struct ResourceMetadataProxy {
+	id: PathedID,
+
+	#[serde(rename = "type")]
+	resource_type: ResourceType,
+
+	#[serde(skip_serializing_if = "Option::is_none")]
+	compressed: Option<bool>,
+
+	#[serde(skip_serializing_if = "Option::is_none")]
+	scrambled: Option<bool>,
+
+	references: Vec<ResourceReference>
+}
+
+#[cfg(feature = "serde")]
 impl Serialize for ResourceMetadata {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where
 		S: serde::Serializer
 	{
-		let mut state = serializer.serialize_struct("ResourceMetadata", 5)?;
-		state.serialize_field("id", &self.id)?;
-		state.serialize_field("type", &self.resource_type)?;
-		state.serialize_field("references", &self.references)?;
-
-		if self.scrambled != Self::infer_scrambled(self.resource_type) {
-			state.serialize_field("scrambled", &self.scrambled)?;
-		} else {
-			state.skip_field("scrambled")?;
+		ResourceMetadataProxy {
+			id: self.id.to_owned(),
+			resource_type: self.resource_type,
+			compressed: (self.compressed != Self::infer_compressed(self.resource_type)).then_some(self.compressed),
+			scrambled: (self.scrambled != Self::infer_scrambled(self.resource_type)).then_some(self.scrambled),
+			references: self.references.to_owned()
 		}
-
-		if self.compressed != Self::infer_compressed(self.resource_type) {
-			state.serialize_field("compressed", &self.compressed)?;
-		} else {
-			state.skip_field("compressed")?;
-		}
-
-		state.end()
+		.serialize(serializer)
 	}
 }
 
@@ -807,103 +814,13 @@ impl<'de> Deserialize<'de> for ResourceMetadata {
 	where
 		D: serde::Deserializer<'de>
 	{
-		deserializer.deserialize_struct(
-			"ResourceMetadata",
-			&["id", "type", "references", "scrambled", "compressed"],
-			ResMetaVisitor
-		)
-	}
-}
-
-#[cfg(feature = "serde")]
-#[derive(Deserialize)]
-#[serde(field_identifier, rename_all = "camelCase")]
-enum ResMetaField {
-	Id,
-	Type,
-	References,
-	Scrambled,
-	Compressed
-}
-
-#[cfg(feature = "serde")]
-struct ResMetaVisitor;
-
-#[cfg(feature = "serde")]
-impl<'de> Visitor<'de> for ResMetaVisitor {
-	type Value = ResourceMetadata;
-
-	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-		formatter.write_str("an object containing a resource's metadata")
-	}
-
-	#[try_fn]
-	fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-	where
-		A: serde::de::MapAccess<'de>
-	{
-		let mut id = None;
-		let mut resource_type = None;
-		let mut references = None;
-		let mut scrambled = None;
-		let mut compressed = None;
-		while let Some(key) = map.next_key()? {
-			match key {
-				ResMetaField::Id => {
-					if id.is_some() {
-						return Err(serde::de::Error::duplicate_field("id"));
-					}
-
-					id = Some(map.next_value()?);
-				}
-
-				ResMetaField::Type => {
-					if resource_type.is_some() {
-						return Err(serde::de::Error::duplicate_field("type"));
-					}
-
-					resource_type = Some(map.next_value()?);
-				}
-
-				ResMetaField::References => {
-					if references.is_some() {
-						return Err(serde::de::Error::duplicate_field("references"));
-					}
-
-					references = Some(map.next_value()?);
-				}
-
-				ResMetaField::Scrambled => {
-					if scrambled.is_some() {
-						return Err(serde::de::Error::duplicate_field("scrambled"));
-					}
-
-					scrambled = Some(map.next_value()?);
-				}
-
-				ResMetaField::Compressed => {
-					if compressed.is_some() {
-						return Err(serde::de::Error::duplicate_field("compressed"));
-					}
-
-					compressed = Some(map.next_value()?);
-				}
-			}
-		}
-
-		let id = id.ok_or_else(|| serde::de::Error::missing_field("id"))?;
-		let resource_type = resource_type.ok_or_else(|| serde::de::Error::missing_field("type"))?;
-		let references = references.ok_or_else(|| serde::de::Error::missing_field("references"))?;
-		let scrambled = scrambled.unwrap_or_else(|| ResourceMetadata::infer_scrambled(resource_type));
-		let compressed = compressed.unwrap_or_else(|| ResourceMetadata::infer_compressed(resource_type));
-
-		ResourceMetadata {
-			id,
-			resource_type,
-			references,
-			scrambled,
-			compressed
-		}
+		ResourceMetadataProxy::deserialize(deserializer).map(|x| Self {
+			id: x.id,
+			resource_type: x.resource_type,
+			compressed: x.compressed.unwrap_or_else(|| Self::infer_compressed(x.resource_type)),
+			scrambled: x.scrambled.unwrap_or_else(|| Self::infer_scrambled(x.resource_type)),
+			references: x.references
+		})
 	}
 }
 
