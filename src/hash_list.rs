@@ -1,6 +1,5 @@
-use std::io::Read;
+use std::{collections::HashMap, io::Read};
 
-use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tryvial::try_fn;
@@ -52,6 +51,7 @@ struct DeserialisedEntry {
 		Self::r_remove_entry
 	)
 )]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct HashList {
 	#[cfg_attr(feature = "rune", rune(get, set))]
@@ -85,6 +85,7 @@ impl HashList {
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::hash_list))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ))]
 #[cfg_attr(feature = "rune", rune(constructor))]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct HashData {
 	pub resource_type: ResourceType,

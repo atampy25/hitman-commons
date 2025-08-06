@@ -1,8 +1,5 @@
 use std::io::{Cursor, Read};
 
-#[cfg(feature = "hash_list")]
-use hashbrown::HashMap;
-
 use thiserror::Error;
 use tryvial::try_fn;
 
@@ -12,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::metadata::{ExtendedResourceMetadata, RuntimeID, RuntimeIDFromStrError};
 
 #[cfg(feature = "hash_list")]
-use crate::hash_list::HashData;
+use {crate::hash_list::HashData, std::collections::HashMap};
 
 #[cfg(feature = "rune")]
 #[try_fn]

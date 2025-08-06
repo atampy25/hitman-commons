@@ -1,4 +1,6 @@
 use core::{fmt, str};
+#[cfg(feature = "hash_list")]
+use std::collections::HashMap;
 use std::{
 	fmt::{Debug, Display},
 	io::{Cursor, Read, Seek, SeekFrom},
@@ -12,7 +14,7 @@ use serde::{de::Visitor, Deserialize, Serialize};
 use serde_hex::{SerHex, StrictCap};
 
 #[cfg(feature = "hash_list")]
-use {crate::hash_list::HashData, hashbrown::HashMap};
+use crate::hash_list::HashData;
 
 use thiserror::Error;
 use tryvial::try_fn;
@@ -52,6 +54,7 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 	feature = "rune",
 	rune_functions(Self::r_get_path, Self::get_id__meta, Self::r_from_str)
 )]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[derive(Clone)]
 pub enum PathedID {
 	#[cfg_attr(feature = "rune", rune(constructor))]
@@ -273,6 +276,8 @@ impl schemars::JsonSchema for PathedID {
 		Self::r_as_u64
 	)
 )]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
+#[cfg_attr(feature = "rkyv", rkyv(derive(Hash, PartialEq, Eq)))]
 #[derive(PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
 pub struct RuntimeID(#[cfg_attr(feature = "serde", serde(with = "SerHex::<StrictCap>"))] u64);
 
@@ -444,6 +449,7 @@ impl From<RuntimeID> for rpkg_rs::resource::runtime_resource_id::RuntimeResource
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ))]
 #[cfg_attr(feature = "rune", rune(constructor))]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ResourceReference {
 	pub resource: PathedID,
@@ -538,6 +544,7 @@ impl<'de> Deserialize<'de> for ResourceReference {
 		Self::as_modern__meta
 	)
 )]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ReferenceFlags {
 	#[cfg_attr(feature = "serde", serde(default))]
@@ -701,6 +708,7 @@ impl ReferenceFlags {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ))]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Default)]
 pub enum ReferenceType {
 	#[default]
@@ -733,6 +741,7 @@ pub enum ReferenceType {
 	feature = "rune",
 	rune_functions(Self::infer_scrambled__meta, Self::infer_compressed__meta, Self::to_extended__meta)
 )]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ResourceMetadata {
 	pub id: PathedID,
@@ -834,6 +843,7 @@ impl<'de> Deserialize<'de> for ResourceMetadata {
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ))]
 #[cfg_attr(feature = "rune", rune(constructor))]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ExtendedResourceMetadata {
 	#[cfg_attr(feature = "serde", serde(flatten))]
@@ -847,6 +857,7 @@ pub struct ExtendedResourceMetadata {
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_functions(Self::r_from_str, Self::r_as_string))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT, PARTIAL_EQ, EQ))]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[derive(PartialEq, Eq, Clone, Copy, Hash)]
 pub struct ResourceType([u8; 4]);
 
