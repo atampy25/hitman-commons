@@ -1278,7 +1278,7 @@ use rpkg_rs::resource::resource_info::ResourceInfo;
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT, CLONE))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum FromResourceInfoError {
 	#[error("invalid RuntimeID: {0}")]
 	InvalidID(#[from] RuntimeIDFromStrError),
