@@ -238,8 +238,8 @@ impl<'de> Deserialize<'de> for PathedID {
 
 #[cfg(feature = "specta")]
 impl specta::Type for PathedID {
-	fn inline(_: &mut specta::TypeMap, _: &[specta::DataType]) -> specta::DataType {
-		specta::DataType::Primitive(specta::PrimitiveType::String)
+	fn inline(_: &mut specta::TypeMap, _: specta::Generics<'_>) -> specta::DataType {
+		specta::DataType::Primitive(specta::datatype::PrimitiveType::String)
 	}
 }
 
@@ -283,8 +283,8 @@ pub struct RuntimeID(#[cfg_attr(feature = "serde", serde(with = "SerHex::<Strict
 
 #[cfg(feature = "specta")]
 impl specta::Type for RuntimeID {
-	fn inline(_: &mut specta::TypeMap, _: &[specta::DataType]) -> specta::DataType {
-		specta::DataType::Primitive(specta::PrimitiveType::String)
+	fn inline(_: &mut specta::TypeMap, _: specta::Generics<'_>) -> specta::DataType {
+		specta::DataType::Primitive(specta::datatype::PrimitiveType::String)
 	}
 }
 
@@ -471,7 +471,7 @@ impl schemars::JsonSchema for ResourceReference {
 
 #[cfg(feature = "specta")]
 impl specta::Type for ResourceReference {
-	fn inline(type_map: &mut specta::TypeMap, generics: &[specta::DataType]) -> specta::DataType {
+	fn inline(type_map: &mut specta::TypeMap, generics: specta::Generics<'_>) -> specta::DataType {
 		ResourceReferenceProxy::inline(type_map, generics)
 	}
 }
@@ -863,8 +863,8 @@ pub struct ResourceType([u8; 4]);
 
 #[cfg(feature = "specta")]
 impl specta::Type for ResourceType {
-	fn inline(_: &mut specta::TypeMap, _: &[specta::DataType]) -> specta::DataType {
-		specta::DataType::Primitive(specta::PrimitiveType::String)
+	fn inline(_: &mut specta::TypeMap, _: specta::Generics<'_>) -> specta::DataType {
+		specta::DataType::Primitive(specta::datatype::PrimitiveType::String)
 	}
 }
 
