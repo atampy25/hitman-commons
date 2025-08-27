@@ -177,6 +177,12 @@ impl From<PathedID> for RuntimeID {
 	}
 }
 
+impl From<&PathedID> for RuntimeID {
+	fn from(val: &PathedID) -> Self {
+		val.get_id()
+	}
+}
+
 #[cfg(feature = "serde")]
 impl Serialize for PathedID {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -440,7 +446,21 @@ impl TryFrom<rpkg_rs::resource::runtime_resource_id::RuntimeResourceID> for Runt
 #[cfg(feature = "rpkg-rs")]
 impl From<RuntimeID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
 	fn from(val: RuntimeID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-		rpkg_rs::resource::runtime_resource_id::RuntimeResourceID::from(Into::<u64>::into(val))
+		rpkg_rs::resource::runtime_resource_id::RuntimeResourceID::from(u64::from(val))
+	}
+}
+
+#[cfg(feature = "rpkg-rs")]
+impl From<PathedID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
+	fn from(val: PathedID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
+		rpkg_rs::resource::runtime_resource_id::RuntimeResourceID::from(u64::from(val.into_id()))
+	}
+}
+
+#[cfg(feature = "rpkg-rs")]
+impl From<&PathedID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
+	fn from(val: &PathedID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
+		rpkg_rs::resource::runtime_resource_id::RuntimeResourceID::from(u64::from(val.get_id()))
 	}
 }
 
