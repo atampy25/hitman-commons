@@ -132,18 +132,11 @@ impl FromStr for RuntimeID {
 
 	#[try_fn]
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		let id = if s.starts_with('0') {
+		if s.starts_with('0') {
 			RuntimeID::from_hash(s)?
 		} else {
 			RuntimeID::from_path(s)
-		};
-
-		if !s.starts_with('0') {
-			// A path, add it to the registry
-			CUSTOM_PATHS.pin().get_or_insert_with(id, || s.into());
 		}
-
-		id
 	}
 }
 
@@ -188,7 +181,13 @@ impl RuntimeID {
 			val |= u64::from(digest[i]) << (8 * (7 - i));
 		}
 
-		Self(val)
+		let id = Self(val);
+
+		if !HASH_LIST.entries.load().contains_key(&id) {
+			CUSTOM_PATHS.pin().get_or_insert_with(id, || path.into());
+		}
+
+		id
 	}
 
 	pub fn get_path(&self) -> Option<EcoString> {
