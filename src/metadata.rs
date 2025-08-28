@@ -53,10 +53,10 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 	rune_functions(
 		Self::from_hash__meta,
 		Self::from_path__meta,
+		Self::as_u64__meta,
 		Self::r_get_path,
 		Self::r_from_str,
-		Self::r_from_u64,
-		Self::r_as_u64
+		Self::r_from_u64
 	)
 )]
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
@@ -199,8 +199,13 @@ impl RuntimeID {
 			.or_else(|| CUSTOM_PATHS.pin().get(self).cloned())
 	}
 
-	pub fn as_u64(&self) -> &u64 {
-		&self.0
+	pub fn to_hash(&self) -> String {
+		format!("{:016X}", self.0)
+	}
+
+	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::as_u64))]
+	pub fn as_u64(self) -> u64 {
+		self.0
 	}
 }
 
@@ -219,11 +224,6 @@ impl RuntimeID {
 	#[rune::function(path = Self::get_path)]
 	fn r_get_path(&self) -> Option<String> {
 		self.get_path().map(|x| x.into())
-	}
-
-	#[rune::function(path = Self::as_u64)]
-	fn r_as_u64(&self) -> u64 {
-		self.0
 	}
 }
 
