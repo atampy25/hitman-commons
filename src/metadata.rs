@@ -1,36 +1,30 @@
-use core::{fmt, str};
-#[cfg(feature = "hash_list")]
-use std::collections::HashMap;
 use std::{
 	fmt::{Debug, Display},
 	io::{Cursor, Read, Seek, SeekFrom},
-	str::FromStr
+	str::{self, FromStr}
 };
 
+use ecow::EcoString;
 #[cfg(feature = "serde")]
-use serde::{de::Visitor, Deserialize, Serialize};
-
-#[cfg(feature = "serde")]
-use serde_hex::{SerHex, StrictCap};
-
-#[cfg(feature = "hash_list")]
-use crate::hash_list::HashData;
+use serde::{Deserialize, Serialize};
 
 use thiserror::Error;
 use tryvial::try_fn;
 
-use crate::{game::GameVersion, rpkg_tool::RpkgResourceMeta};
+use crate::{
+	game::GameVersion,
+	hash_list::{CUSTOM_PATHS, HASH_LIST},
+	rpkg_tool::RpkgResourceMeta
+};
 
 #[cfg(feature = "rune")]
 #[try_fn]
 pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 	let mut module = rune::Module::with_crate_item("hitman_commons", ["metadata"])?;
 
-	module.ty::<PathedID>()?;
 	module.ty::<RuntimeID>()?;
 	module.ty::<FromU64Error>()?;
-	module.ty::<PathedIDFromStrError>()?;
-	module.ty::<RuntimeIDFromStrError>()?;
+	module.ty::<RuntimeIDFromHashError>()?;
 	module.ty::<ResourceReference>()?;
 	module.ty::<ReferenceFlags>()?;
 	module.ty::<ReferenceType>()?;
@@ -47,236 +41,19 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 	module
 }
 
-#[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(
-	feature = "rune",
-	rune_functions(Self::r_get_path, Self::get_id__meta, Self::r_from_str)
+	feature = "serde",
+	derive(serde_with::SerializeDisplay, serde_with::DeserializeFromStr)
 )]
-#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
-#[derive(Clone)]
-pub enum PathedID {
-	#[cfg_attr(feature = "rune", rune(constructor))]
-	Path(#[cfg_attr(feature = "rune", rune(get, set))] String),
-
-	#[cfg_attr(feature = "rune", rune(constructor))]
-	Unknown(#[cfg_attr(feature = "rune", rune(get, set))] RuntimeID)
-}
-
-impl PartialEq for PathedID {
-	fn eq(&self, other: &Self) -> bool {
-		self.get_id() == other.get_id()
-	}
-}
-
-impl Eq for PathedID {}
-
-impl std::hash::Hash for PathedID {
-	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-		self.get_id().hash(state)
-	}
-}
-
-#[derive(Error, Debug)]
-#[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
-#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
-pub enum PathedIDFromStrError {
-	#[error("invalid RuntimeID: {0}")]
-	InvalidRuntimeID(#[from] RuntimeIDFromStrError)
-}
-
-impl FromStr for PathedID {
-	type Err = PathedIDFromStrError;
-
-	#[try_fn]
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		if s.starts_with('0') {
-			Self::Unknown(RuntimeID::from_str(s).map_err(PathedIDFromStrError::InvalidRuntimeID)?)
-		} else {
-			Self::Path(s.to_owned())
-		}
-	}
-}
-
-impl PathedID {
-	pub fn get_path(&self) -> Option<&String> {
-		match self {
-			PathedID::Path(path) => Some(path),
-			PathedID::Unknown(_) => None
-		}
-	}
-
-	#[cfg_attr(feature = "rune", rune::function(keep, instance, path = Self::get_id))]
-	pub fn get_id(&self) -> RuntimeID {
-		match self {
-			PathedID::Path(path) => RuntimeID::from_path(path),
-			PathedID::Unknown(id) => *id
-		}
-	}
-
-	pub fn into_path(self) -> Option<String> {
-		match self {
-			PathedID::Path(path) => Some(path),
-			PathedID::Unknown(_) => None
-		}
-	}
-
-	pub fn into_id(self) -> RuntimeID {
-		match self {
-			PathedID::Path(path) => RuntimeID::from_path(&path),
-			PathedID::Unknown(id) => id
-		}
-	}
-}
-
-#[cfg(feature = "rune")]
-impl PathedID {
-	#[rune::function(path = Self::get_path)]
-	fn r_get_path(&self) -> Option<String> {
-		match self {
-			PathedID::Path(path) => Some(path.to_owned()),
-			PathedID::Unknown(_) => None
-		}
-	}
-
-	#[rune::function(path = Self::from_str)]
-	fn r_from_str(s: &str) -> Result<Self, PathedIDFromStrError> {
-		Self::from_str(s)
-	}
-}
-
-impl Display for PathedID {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		match self {
-			PathedID::Path(path) => write!(f, "{}", path),
-			PathedID::Unknown(id) => write!(f, "{}", id)
-		}
-	}
-}
-
-impl Debug for PathedID {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		match self {
-			PathedID::Path(path) => write!(f, "{}", path),
-			PathedID::Unknown(id) => write!(f, "{}", id)
-		}
-	}
-}
-
-impl From<RuntimeID> for PathedID {
-	fn from(val: RuntimeID) -> Self {
-		PathedID::Unknown(val)
-	}
-}
-
-impl From<PathedID> for RuntimeID {
-	fn from(val: PathedID) -> Self {
-		val.into_id()
-	}
-}
-
-impl From<&PathedID> for RuntimeID {
-	fn from(val: &PathedID) -> Self {
-		val.get_id()
-	}
-}
-
-#[cfg(feature = "serde")]
-impl Serialize for PathedID {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-	where
-		S: serde::Serializer
-	{
-		match self {
-			PathedID::Path(path) => serializer.serialize_str(path),
-			PathedID::Unknown(id) => id.serialize(serializer)
-		}
-	}
-}
-
-#[cfg(feature = "serde")]
-impl<'de> Deserialize<'de> for PathedID {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where
-		D: serde::Deserializer<'de>
-	{
-		struct PathedIDVisitor;
-
-		impl<'de> Visitor<'de> for PathedIDVisitor {
-			type Value = PathedID;
-
-			fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-				formatter.write_str("a path or a RuntimeID")
-			}
-
-			fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-			where
-				E: serde::de::Error
-			{
-				if v.starts_with('0') {
-					Ok(PathedID::Unknown(
-						RuntimeID::from_str(v).map_err(serde::de::Error::custom)?
-					))
-				} else {
-					Ok(PathedID::Path(v.to_owned()))
-				}
-			}
-
-			fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-			where
-				E: serde::de::Error
-			{
-				if v.starts_with('0') {
-					Ok(PathedID::Unknown(
-						RuntimeID::from_str(&v).map_err(serde::de::Error::custom)?
-					))
-				} else {
-					Ok(PathedID::Path(v))
-				}
-			}
-		}
-
-		deserializer.deserialize_string(PathedIDVisitor)
-	}
-}
-
-#[cfg(feature = "specta")]
-impl specta::Type for PathedID {
-	fn inline(_: &mut specta::TypeMap, _: specta::Generics<'_>) -> specta::DataType {
-		specta::DataType::Primitive(specta::datatype::PrimitiveType::String)
-	}
-}
-
-#[cfg(feature = "schemars")]
-impl schemars::JsonSchema for PathedID {
-	fn schema_name() -> String {
-		"PathedID".to_owned()
-	}
-
-	fn schema_id() -> std::borrow::Cow<'static, str> {
-		std::borrow::Cow::Borrowed("PathedID")
-	}
-
-	fn json_schema(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-		schemars::schema::SchemaObject {
-			instance_type: Some(schemars::schema::InstanceType::String.into()),
-			..Default::default()
-		}
-		.into()
-	}
-}
-
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(
 	feature = "rune",
 	rune_functions(
-		Self::from_any__meta,
+		Self::from_hash__meta,
 		Self::from_path__meta,
+		Self::r_get_path,
 		Self::r_from_str,
 		Self::r_from_u64,
 		Self::r_as_u64
@@ -285,7 +62,7 @@ impl schemars::JsonSchema for PathedID {
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[cfg_attr(feature = "rkyv", rkyv(derive(Hash, PartialEq, Eq)))]
 #[derive(PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
-pub struct RuntimeID(#[cfg_attr(feature = "serde", serde(with = "SerHex::<StrictCap>"))] u64);
+pub struct RuntimeID(u64);
 
 #[cfg(feature = "specta")]
 impl specta::Type for RuntimeID {
@@ -296,24 +73,14 @@ impl specta::Type for RuntimeID {
 
 #[cfg(feature = "schemars")]
 impl schemars::JsonSchema for RuntimeID {
-	fn schema_name() -> String {
-		"RuntimeID".to_owned()
-	}
-
-	fn schema_id() -> std::borrow::Cow<'static, str> {
+	fn schema_name() -> std::borrow::Cow<'static, str> {
 		std::borrow::Cow::Borrowed("RuntimeID")
 	}
 
-	fn json_schema(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-		schemars::schema::SchemaObject {
-			instance_type: Some(schemars::schema::InstanceType::String.into()),
-			string: Some(Box::new(schemars::schema::StringValidation {
-				pattern: Some(r"^00[0-9A-F]{14}$".to_owned()),
-				..Default::default()
-			})),
-			..Default::default()
-		}
-		.into()
+	fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+		schemars::json_schema!({
+			"type": "string"
+		})
 	}
 }
 
@@ -349,7 +116,7 @@ impl From<RuntimeID> for u64 {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
-pub enum RuntimeIDFromStrError {
+pub enum RuntimeIDFromHashError {
 	#[error("invalid u64: {0}")]
 	InvalidNumber(#[from] std::num::ParseIntError),
 
@@ -361,40 +128,55 @@ pub enum RuntimeIDFromStrError {
 }
 
 impl FromStr for RuntimeID {
-	type Err = RuntimeIDFromStrError;
+	type Err = RuntimeIDFromHashError;
 
 	#[try_fn]
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		if s.len() != 16 {
-			return Err(RuntimeIDFromStrError::InvalidLength);
+		let id = if s.starts_with('0') {
+			RuntimeID::from_hash(s)?
+		} else {
+			RuntimeID::from_path(s)
+		};
+
+		if !s.starts_with('0') {
+			// A path, add it to the registry
+			CUSTOM_PATHS.pin().get_or_insert_with(id, || s.into());
 		}
 
-		let val = u64::from_str_radix(s, 16).map_err(RuntimeIDFromStrError::InvalidNumber)?;
-		val.try_into().map_err(RuntimeIDFromStrError::InvalidID)?
+		id
 	}
 }
 
 impl Display for RuntimeID {
 	fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-		write!(f, "{:016X}", self.0)
+		if let Some(data) = HASH_LIST.entries.load().get(self)
+			&& let Some(path) = data.path.as_ref()
+		{
+			write!(f, "{path}")
+		} else if let Some(path) = CUSTOM_PATHS.pin().get(self) {
+			write!(f, "{path}")
+		} else {
+			write!(f, "{:016X}", self.0)
+		}
 	}
 }
 
 impl Debug for RuntimeID {
 	fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-		write!(f, "{:016X}", self.0)
+		write!(f, "{}", self.0)
 	}
 }
 
 impl RuntimeID {
 	#[try_fn]
-	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::from_any))]
-	pub fn from_any(val: &str) -> Result<Self, RuntimeIDFromStrError> {
-		if val.starts_with('0') {
-			RuntimeID::from_str(val)?
-		} else {
-			RuntimeID::from_path(val)
+	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::from_hash))]
+	pub fn from_hash(hash: &str) -> Result<Self, RuntimeIDFromHashError> {
+		if hash.len() != 16 {
+			return Err(RuntimeIDFromHashError::InvalidLength);
 		}
+
+		let val = u64::from_str_radix(hash, 16).map_err(RuntimeIDFromHashError::InvalidNumber)?;
+		val.try_into().map_err(RuntimeIDFromHashError::InvalidID)?
 	}
 
 	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::from_path))]
@@ -409,6 +191,15 @@ impl RuntimeID {
 		Self(val)
 	}
 
+	pub fn get_path(&self) -> Option<EcoString> {
+		HASH_LIST
+			.entries
+			.load()
+			.get(self)
+			.and_then(|data| data.path.to_owned())
+			.or_else(|| CUSTOM_PATHS.pin().get(self).cloned())
+	}
+
 	pub fn as_u64(&self) -> &u64 {
 		&self.0
 	}
@@ -417,13 +208,18 @@ impl RuntimeID {
 #[cfg(feature = "rune")]
 impl RuntimeID {
 	#[rune::function(path = Self::from_str)]
-	fn r_from_str(s: &str) -> Result<Self, RuntimeIDFromStrError> {
+	fn r_from_str(s: &str) -> Result<Self, RuntimeIDFromHashError> {
 		Self::from_str(s)
 	}
 
 	#[rune::function(path = Self::from_u64)]
 	fn r_from_u64(val: u64) -> Result<Self, FromU64Error> {
 		Self::try_from(val)
+	}
+
+	#[rune::function(path = Self::get_path)]
+	fn r_get_path(&self) -> Option<String> {
+		self.get_path().map(|x| x.into())
 	}
 
 	#[rune::function(path = Self::as_u64)]
@@ -434,12 +230,23 @@ impl RuntimeID {
 
 #[cfg(feature = "rpkg-rs")]
 impl TryFrom<rpkg_rs::resource::runtime_resource_id::RuntimeResourceID> for RuntimeID {
-	type Error = RuntimeIDFromStrError;
+	type Error = RuntimeIDFromHashError;
 
 	#[try_fn]
 	fn try_from(val: rpkg_rs::resource::runtime_resource_id::RuntimeResourceID) -> Result<Self, Self::Error> {
 		// TODO: We should be able to use the u64 directly instead of having to convert to/from a string.
-		RuntimeID::from_str(&val.to_hex_string())?
+		RuntimeID::from_hash(&val.to_hex_string())?
+	}
+}
+
+#[cfg(feature = "rpkg-rs")]
+impl TryFrom<&rpkg_rs::resource::runtime_resource_id::RuntimeResourceID> for RuntimeID {
+	type Error = RuntimeIDFromHashError;
+
+	#[try_fn]
+	fn try_from(val: &rpkg_rs::resource::runtime_resource_id::RuntimeResourceID) -> Result<Self, Self::Error> {
+		// TODO: We should be able to use the u64 directly instead of having to convert to/from a string.
+		RuntimeID::from_hash(&val.to_hex_string())?
 	}
 }
 
@@ -451,16 +258,9 @@ impl From<RuntimeID> for rpkg_rs::resource::runtime_resource_id::RuntimeResource
 }
 
 #[cfg(feature = "rpkg-rs")]
-impl From<PathedID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-	fn from(val: PathedID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-		rpkg_rs::resource::runtime_resource_id::RuntimeResourceID::from(u64::from(val.into_id()))
-	}
-}
-
-#[cfg(feature = "rpkg-rs")]
-impl From<&PathedID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-	fn from(val: &PathedID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-		rpkg_rs::resource::runtime_resource_id::RuntimeResourceID::from(u64::from(val.get_id()))
+impl From<&RuntimeID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
+	fn from(val: &RuntimeID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
+		rpkg_rs::resource::runtime_resource_id::RuntimeResourceID::from(u64::from(*val))
 	}
 }
 
@@ -472,20 +272,18 @@ impl From<&PathedID> for rpkg_rs::resource::runtime_resource_id::RuntimeResource
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ResourceReference {
-	pub resource: PathedID,
+	pub resource: RuntimeID,
 	pub flags: ReferenceFlags
 }
 
 #[cfg(feature = "schemars")]
 impl schemars::JsonSchema for ResourceReference {
-	fn schema_name() -> String {
-		"ResourceReference".to_owned()
+	fn schema_name() -> std::borrow::Cow<'static, str> {
+		"ResourceReference".into()
 	}
 
-	fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-		// Either a PathedID or a ReferenceWithFlags object
-
-		gen.subschema_for::<ResourceReferenceProxy>()
+	fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+		generator.subschema_for::<ResourceReferenceProxy>()
 	}
 }
 
@@ -501,9 +299,9 @@ impl specta::Type for ResourceReference {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(untagged))]
 enum ResourceReferenceProxy {
-	PathedID(PathedID),
+	RuntimeID(RuntimeID),
 	ReferenceWithFlags {
-		resource: PathedID,
+		resource: RuntimeID,
 
 		#[cfg_attr(feature = "serde", serde(flatten))]
 		flags: ReferenceFlags
@@ -517,7 +315,7 @@ impl Serialize for ResourceReference {
 		S: serde::Serializer
 	{
 		if is_default_flags(&self.flags) {
-			ResourceReferenceProxy::PathedID(self.resource.to_owned()).serialize(serializer)
+			ResourceReferenceProxy::RuntimeID(self.resource.to_owned()).serialize(serializer)
 		} else {
 			ResourceReferenceProxy::ReferenceWithFlags {
 				resource: self.resource.to_owned(),
@@ -535,7 +333,7 @@ impl<'de> Deserialize<'de> for ResourceReference {
 		D: serde::Deserializer<'de>
 	{
 		ResourceReferenceProxy::deserialize(deserializer).map(|x| match x {
-			ResourceReferenceProxy::PathedID(resource) => Self {
+			ResourceReferenceProxy::RuntimeID(resource) => Self {
 				resource,
 				flags: Default::default()
 			},
@@ -764,7 +562,7 @@ pub enum ReferenceType {
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ResourceMetadata {
-	pub id: PathedID,
+	pub id: RuntimeID,
 	pub resource_type: ResourceType,
 	pub compressed: bool,
 	pub scrambled: bool,
@@ -806,7 +604,7 @@ impl ResourceMetadata {
 #[cfg(feature = "serde")]
 #[derive(Serialize, Deserialize)]
 struct ResourceMetadataProxy {
-	id: PathedID,
+	id: RuntimeID,
 
 	#[serde(rename = "type")]
 	resource_type: ResourceType,
@@ -873,6 +671,10 @@ pub struct ExtendedResourceMetadata {
 	pub video_memory_requirement: u32
 }
 
+#[cfg_attr(
+	feature = "serde",
+	derive(serde_with::SerializeDisplay, serde_with::DeserializeFromStr)
+)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_functions(Self::r_from_str, Self::r_as_string))]
@@ -890,72 +692,15 @@ impl specta::Type for ResourceType {
 
 #[cfg(feature = "schemars")]
 impl schemars::JsonSchema for ResourceType {
-	fn schema_name() -> String {
-		"ResourceType".to_owned()
+	fn schema_name() -> std::borrow::Cow<'static, str> {
+		"ResourceType".into()
 	}
 
-	fn schema_id() -> std::borrow::Cow<'static, str> {
-		std::borrow::Cow::Borrowed("ResourceType")
-	}
-
-	fn json_schema(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-		schemars::schema::SchemaObject {
-			instance_type: Some(schemars::schema::InstanceType::String.into()),
-			string: Some(Box::new(schemars::schema::StringValidation {
-				pattern: Some(r"^[A-Z]{4}$".to_owned()),
-				..Default::default()
-			})),
-			..Default::default()
-		}
-		.into()
-	}
-}
-
-#[cfg(feature = "serde")]
-impl Serialize for ResourceType {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-	where
-		S: serde::Serializer
-	{
-		unsafe { serializer.serialize_str(str::from_utf8_unchecked(&self.0)) }
-	}
-}
-
-#[cfg(feature = "serde")]
-impl<'de> Deserialize<'de> for ResourceType {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where
-		D: serde::Deserializer<'de>
-	{
-		deserializer.deserialize_string(ResTypeVisitor)
-	}
-}
-
-#[cfg(feature = "serde")]
-struct ResTypeVisitor;
-
-#[cfg(feature = "serde")]
-impl<'de> Visitor<'de> for ResTypeVisitor {
-	type Value = ResourceType;
-
-	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-		formatter.write_str("a 4-character string representing a resource type")
-	}
-
-	#[try_fn]
-	fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-	where
-		E: serde::de::Error
-	{
-		ResourceType(v.into_bytes().try_into().map_err(|_| E::custom("invalid length"))?)
-	}
-
-	#[try_fn]
-	fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-	where
-		E: serde::de::Error
-	{
-		ResourceType(v.as_bytes().try_into().map_err(|_| E::custom("invalid length"))?)
+	fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+		schemars::json_schema!({
+			"type": "string",
+			"pattern": "^[A-Z]{4}$"
+		})
 	}
 }
 
@@ -981,6 +726,14 @@ pub enum ResourceTypeError {
 
 	#[error("invalid UTF-8: {0}")]
 	InvalidString(#[from] std::string::FromUtf8Error)
+}
+
+impl FromStr for ResourceType {
+	type Err = ResourceTypeError;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		ResourceType::try_from(s)
+	}
 }
 
 impl TryFrom<String> for ResourceType {
@@ -1178,46 +931,6 @@ impl ResourceMetadata {
 			core_info: self
 		}
 	}
-
-	#[cfg(feature = "hash_list")]
-	pub fn apply_hash_list(&mut self, hash_list: &HashMap<RuntimeID, HashData>) {
-		if let PathedID::Unknown(id) = &self.id {
-			if let Some(entry) = hash_list.get(id) {
-				if let Some(path) = entry.path.as_ref() {
-					self.id = PathedID::Path(path.to_owned());
-				}
-			}
-		}
-
-		for reference in &mut self.references {
-			if let PathedID::Unknown(resource) = &reference.resource {
-				if let Some(entry) = hash_list.get(resource) {
-					if let Some(path) = entry.path.as_ref() {
-						reference.resource = PathedID::Path(path.to_owned());
-					}
-				}
-			}
-		}
-	}
-
-	pub fn normalise_hashes(&mut self) {
-		self.id = PathedID::Unknown(self.id.get_id());
-
-		for reference in &mut self.references {
-			reference.resource = PathedID::Unknown(reference.resource.get_id());
-		}
-	}
-
-	#[cfg(feature = "hash_list")]
-	pub fn with_hash_list(mut self, hash_list: &HashMap<RuntimeID, HashData>) -> Self {
-		self.apply_hash_list(hash_list);
-		self
-	}
-
-	pub fn with_normalised_hashes(mut self) -> Self {
-		self.normalise_hashes();
-		self
-	}
 }
 
 #[derive(Error, Debug)]
@@ -1225,14 +938,8 @@ impl ResourceMetadata {
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum FromRpkgResourceMetaError {
-	#[error("invalid resource: {0}")]
-	InvalidID(#[from] PathedIDFromStrError),
-
 	#[error("invalid flag: {0}")]
-	InvalidFlag(#[from] std::num::ParseIntError),
-
-	#[error("invalid resource type: {0}")]
-	InvalidType(#[from] ResourceTypeError)
+	InvalidFlag(#[from] std::num::ParseIntError)
 }
 
 impl TryFrom<RpkgResourceMeta> for ResourceMetadata {
@@ -1241,8 +948,8 @@ impl TryFrom<RpkgResourceMeta> for ResourceMetadata {
 	#[try_fn]
 	fn try_from(meta: RpkgResourceMeta) -> Result<Self, Self::Error> {
 		Self {
-			id: meta.hash_value.parse().map_err(FromRpkgResourceMetaError::InvalidID)?,
-			resource_type: meta.hash_resource_type.try_into()?,
+			id: meta.hash_value,
+			resource_type: meta.hash_resource_type,
 			compressed: meta.hash_size & 0x7FFFFFFF != 0,
 			scrambled: meta.hash_size & 0x80000000 == 0x80000000,
 			references: meta
@@ -1250,7 +957,7 @@ impl TryFrom<RpkgResourceMeta> for ResourceMetadata {
 				.into_iter()
 				.map(|x| {
 					Ok(ResourceReference {
-						resource: x.hash.parse().map_err(FromRpkgResourceMetaError::InvalidID)?,
+						resource: x.hash,
 						flags: ReferenceFlags::from_any(
 							u8::from_str_radix(&x.flag, 16).map_err(FromRpkgResourceMetaError::InvalidFlag)?
 						)
@@ -1268,8 +975,8 @@ impl TryFrom<RpkgResourceMeta> for ExtendedResourceMetadata {
 	fn try_from(meta: RpkgResourceMeta) -> Result<Self, Self::Error> {
 		Self {
 			core_info: ResourceMetadata {
-				id: meta.hash_value.parse().map_err(FromRpkgResourceMetaError::InvalidID)?,
-				resource_type: meta.hash_resource_type.try_into()?,
+				id: meta.hash_value,
+				resource_type: meta.hash_resource_type,
 				compressed: meta.hash_size & 0x7FFFFFFF != 0,
 				scrambled: meta.hash_size & 0x80000000 == 0x80000000,
 				references: meta
@@ -1277,7 +984,7 @@ impl TryFrom<RpkgResourceMeta> for ExtendedResourceMetadata {
 					.into_iter()
 					.map(|x| {
 						Ok(ResourceReference {
-							resource: x.hash.parse().map_err(FromRpkgResourceMetaError::InvalidID)?,
+							resource: x.hash,
 							flags: ReferenceFlags::from_any(
 								u8::from_str_radix(&x.flag, 16).map_err(FromRpkgResourceMetaError::InvalidFlag)?
 							)
@@ -1301,7 +1008,7 @@ use rpkg_rs::resource::resource_info::ResourceInfo;
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum FromResourceInfoError {
 	#[error("invalid RuntimeID: {0}")]
-	InvalidID(#[from] RuntimeIDFromStrError),
+	InvalidID(#[from] RuntimeIDFromHashError),
 
 	#[error("invalid resource type")]
 	InvalidResourceType
@@ -1315,18 +1022,14 @@ impl TryFrom<&ResourceInfo> for ExtendedResourceMetadata {
 	fn try_from(info: &ResourceInfo) -> Result<ExtendedResourceMetadata, Self::Error> {
 		ExtendedResourceMetadata {
 			core_info: ResourceMetadata {
-				id: RuntimeID::try_from(*info.rrid())
-					.map_err(FromResourceInfoError::InvalidID)?
-					.into(),
+				id: RuntimeID::try_from(*info.rrid()).map_err(FromResourceInfoError::InvalidID)?,
 				resource_type: info.data_type().try_into().unwrap(),
 				references: info
 					.references()
 					.iter()
 					.map(|(id, flags)| {
 						Ok::<_, Self::Error>(ResourceReference {
-							resource: RuntimeID::try_from(*id)
-								.map_err(FromResourceInfoError::InvalidID)?
-								.into(),
+							resource: RuntimeID::try_from(*id).map_err(FromResourceInfoError::InvalidID)?,
 							flags: ReferenceFlags {
 								reference_type: match flags.reference_type() {
 									rpkg_rs::resource::resource_package::ReferenceType::INSTALL => {
@@ -1357,18 +1060,14 @@ impl TryFrom<&ResourceInfo> for ResourceMetadata {
 	#[try_fn]
 	fn try_from(info: &ResourceInfo) -> Result<ResourceMetadata, Self::Error> {
 		ResourceMetadata {
-			id: RuntimeID::try_from(*info.rrid())
-				.map_err(FromResourceInfoError::InvalidID)?
-				.into(),
+			id: RuntimeID::try_from(*info.rrid()).map_err(FromResourceInfoError::InvalidID)?,
 			resource_type: info.data_type().try_into().unwrap(),
 			references: info
 				.references()
 				.iter()
 				.map(|(id, flags)| {
 					Ok::<_, Self::Error>(ResourceReference {
-						resource: RuntimeID::try_from(*id)
-							.map_err(FromResourceInfoError::InvalidID)?
-							.into(),
+						resource: RuntimeID::try_from(*id).map_err(FromResourceInfoError::InvalidID)?,
 						flags: ReferenceFlags {
 							reference_type: match flags.reference_type() {
 								rpkg_rs::resource::resource_package::ReferenceType::INSTALL => ReferenceType::Install,

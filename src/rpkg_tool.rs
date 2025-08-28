@@ -6,10 +6,9 @@ use tryvial::try_fn;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::metadata::{ExtendedResourceMetadata, RuntimeID, RuntimeIDFromStrError};
-
-#[cfg(feature = "hash_list")]
-use {crate::hash_list::HashData, std::collections::HashMap};
+use crate::metadata::{
+	ExtendedResourceMetadata, FromU64Error, ResourceType, ResourceTypeError, RuntimeID, RuntimeIDFromHashError
+};
 
 #[cfg(feature = "rune")]
 #[try_fn]
@@ -29,28 +28,40 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(feature = "rune", rune_functions(Self::r_new))]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RpkgResourceMeta {
 	pub hash_offset: u64,
 	pub hash_reference_data: Vec<RpkgResourceReference>,
 	pub hash_reference_table_dummy: u32,
 	pub hash_reference_table_size: u32,
-	pub hash_resource_type: String,
+	pub hash_resource_type: ResourceType,
 	pub hash_size: u32,
 	pub hash_size_final: u32,
 	pub hash_size_in_memory: u32,
 	pub hash_size_in_video_memory: u32,
-	pub hash_value: String,
+	pub hash_value: RuntimeID,
 
 	#[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-	pub hash_path: Option<String>
+	pub hash_path: Option<RuntimeID>
 }
 
 #[cfg(feature = "rune")]
 impl RpkgResourceMeta {
 	#[rune::function(path = Self::new)]
-	pub fn r_new() -> Self {
-		Self::default()
+	pub fn r_new(id: RuntimeID, resource_type: ResourceType) -> Self {
+		Self {
+			hash_offset: 0,
+			hash_reference_data: Vec::new(),
+			hash_reference_table_dummy: 0,
+			hash_reference_table_size: 0,
+			hash_resource_type: resource_type,
+			hash_size: 0,
+			hash_size_final: 0,
+			hash_size_in_memory: 0,
+			hash_size_in_video_memory: 0,
+			hash_value: id,
+			hash_path: None
+		}
 	}
 }
 
@@ -61,10 +72,10 @@ impl RpkgResourceMeta {
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(feature = "rune", rune(constructor))]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RpkgResourceReference {
 	#[cfg_attr(feature = "rune", rune(get, set))]
-	pub hash: String,
+	pub hash: RuntimeID,
 
 	#[cfg_attr(feature = "rune", rune(get, set))]
 	pub flag: String
@@ -86,8 +97,14 @@ pub enum RpkgInteropError {
 	#[error("invalid hex value: {0}")]
 	InvalidHex(#[from] std::num::ParseIntError),
 
-	#[error("invalid ResourceID: {0}")]
-	InvalidResourceID(#[from] RuntimeIDFromStrError)
+	#[error("invalid RuntimeID: {0}")]
+	InvalidHash(#[from] RuntimeIDFromHashError),
+
+	#[error("invalid RuntimeID: {0}")]
+	InvalidRuntimeID(#[from] FromU64Error),
+
+	#[error("invalid resource type: {0}")]
+	InvalidResourceType(#[from] ResourceTypeError)
 }
 
 impl RpkgResourceMeta {
@@ -97,7 +114,7 @@ impl RpkgResourceMeta {
 
 		let mut hash_value = [0; 8];
 		cursor.read_exact(&mut hash_value)?;
-		let hash_value = format!("{:0>16X}", u64::from_le_bytes(hash_value));
+		let hash_value = u64::from_le_bytes(hash_value);
 
 		let mut hash_offset = [0; 8];
 		cursor.read_exact(&mut hash_offset)?;
@@ -158,10 +175,13 @@ impl RpkgResourceMeta {
 				flags
 					.iter()
 					.zip(references)
-					.map(|(flag, reference)| RpkgResourceReference {
-						hash: format!("{:0>16X}", reference),
-						flag: format!("{:X}", flag)
+					.map(|(flag, reference)| {
+						Ok(RpkgResourceReference {
+							hash: reference.try_into()?,
+							flag: format!("{:X}", flag)
+						})
 					})
+					.collect::<Result<Vec<_>>>()?
 			)
 		}
 
@@ -170,12 +190,12 @@ impl RpkgResourceMeta {
 			hash_reference_data: dependencies,
 			hash_reference_table_dummy,
 			hash_reference_table_size,
-			hash_resource_type,
+			hash_resource_type: hash_resource_type.try_into()?,
 			hash_size,
 			hash_size_final,
 			hash_size_in_memory,
 			hash_size_in_video_memory,
-			hash_value,
+			hash_value: hash_value.try_into()?,
 			hash_path: None
 		}
 	}
@@ -185,10 +205,10 @@ impl RpkgResourceMeta {
 		let mut data = Vec::with_capacity(44);
 
 		// Note: hash_path is not considered here; this is in line with RPKG Tool's behaviour
-		data.extend(RuntimeID::from_any(&self.hash_value)?.as_u64().to_le_bytes());
+		data.extend(self.hash_value.as_u64().to_le_bytes());
 		data.extend(self.hash_offset.to_le_bytes());
 		data.extend(self.hash_size.to_le_bytes());
-		data.extend(self.hash_resource_type.as_bytes());
+		data.extend(self.hash_resource_type.as_ref().as_bytes());
 
 		data.extend(if self.hash_reference_data.is_empty() {
 			[0; 4]
@@ -209,7 +229,7 @@ impl RpkgResourceMeta {
 			}
 
 			for reference in &self.hash_reference_data {
-				data.extend(RuntimeID::from_any(&reference.hash)?.as_u64().to_le_bytes());
+				data.extend(reference.hash.as_u64().to_le_bytes());
 			}
 		}
 
@@ -222,11 +242,11 @@ impl RpkgResourceMeta {
 			hash_size: if metadata.core_info.compressed { 1000 } else { 0 }
 				| if metadata.core_info.scrambled { 0x80000000 } else { 0x0 },
 			hash_size_final: 1000,
-			hash_value: metadata.core_info.id.to_string(),
+			hash_value: metadata.core_info.id,
 			hash_path: None,
 			hash_size_in_memory: metadata.system_memory_requirement,
 			hash_size_in_video_memory: metadata.video_memory_requirement,
-			hash_resource_type: metadata.core_info.resource_type.into(),
+			hash_resource_type: metadata.core_info.resource_type,
 			hash_reference_data: metadata
 				.core_info
 				.references
@@ -240,7 +260,7 @@ impl RpkgResourceMeta {
 							reference.flags.as_modern()
 						}
 					),
-					hash: reference.resource.to_string()
+					hash: reference.resource
 				})
 				.collect(),
 			hash_reference_table_size: match &metadata.core_info.references.len() {
@@ -250,80 +270,42 @@ impl RpkgResourceMeta {
 			hash_reference_table_dummy: 0
 		}
 	}
-
-	#[cfg(feature = "hash_list")]
-	#[try_fn]
-	pub fn apply_hash_list(&mut self, hash_list: &HashMap<RuntimeID, HashData>) -> Result<(), RpkgInteropError> {
-		if let Some(entry) = hash_list.get(&RuntimeID::from_any(&self.hash_value)?) {
-			if let Some(path) = entry.path.as_ref() {
-				self.hash_path = Some(path.to_owned());
-			}
-		}
-
-		for reference in &mut self.hash_reference_data {
-			if let Some(entry) = hash_list.get(&RuntimeID::from_any(&reference.hash)?) {
-				if let Some(path) = entry.path.as_ref() {
-					reference.hash = path.to_owned();
-				}
-			}
-		}
-	}
-
-	#[try_fn]
-	pub fn normalise_hashes(&mut self) -> Result<(), RpkgInteropError> {
-		// This can be a path instead of a hash
-		// One tool was slightly easier to write with this behaviour, so Anthony Fuller modified the RPKG codebase to support it
-		// Which means we also have to support it
-		self.hash_value = RuntimeID::from_any(&self.hash_value)?.to_string();
-
-		for reference in &mut self.hash_reference_data {
-			reference.hash = RuntimeID::from_any(&reference.hash)?.to_string();
-		}
-	}
-
-	#[cfg(feature = "hash_list")]
-	#[try_fn]
-	pub fn with_hash_list(mut self, hash_list: &HashMap<RuntimeID, HashData>) -> Result<Self, RpkgInteropError> {
-		self.apply_hash_list(hash_list)?;
-		self
-	}
-
-	#[try_fn]
-	pub fn with_normalised_hashes(mut self) -> Result<Self, RpkgInteropError> {
-		self.normalise_hashes()?;
-		self
-	}
 }
 
 #[cfg(feature = "rpkg-rs")]
 use rpkg_rs::resource::{resource_info::ResourceInfo, resource_package::ResourceReferenceFlags};
 
 #[cfg(feature = "rpkg-rs")]
-impl From<ResourceInfo> for RpkgResourceMeta {
-	fn from(info: ResourceInfo) -> RpkgResourceMeta {
+impl TryFrom<ResourceInfo> for RpkgResourceMeta {
+	type Error = RpkgInteropError;
+
+	#[try_fn]
+	fn try_from(info: ResourceInfo) -> Result<RpkgResourceMeta> {
 		RpkgResourceMeta {
 			hash_offset: info.data_offset(),
 			hash_size: info.compressed_size().unwrap_or(0) | (if info.is_scrambled() { 0x80000000 } else { 0x0 }),
 			hash_size_final: info.size(),
-			hash_value: info.rrid().to_hex_string(),
+			hash_value: info.rrid().try_into()?,
 			hash_path: None,
 			hash_size_in_memory: info.system_memory_requirement(),
 			hash_size_in_video_memory: info.video_memory_requirement(),
-			hash_resource_type: info.data_type(),
+			hash_resource_type: info.data_type().try_into()?,
 			hash_reference_data: info
 				.references()
 				.iter()
-				.map(|(hash, flag)| RpkgResourceReference {
-					flag: format!(
-						"{:02X}",
-						match flag {
-							ResourceReferenceFlags::Legacy(x) => x.into_bits(),
-							ResourceReferenceFlags::Standard(x) => x.into_bits()
-						}
-					),
-					hash: hash.to_hex_string()
+				.map(|(hash, flag)| {
+					Ok(RpkgResourceReference {
+						flag: format!(
+							"{:02X}",
+							match flag {
+								ResourceReferenceFlags::Legacy(x) => x.into_bits(),
+								ResourceReferenceFlags::Standard(x) => x.into_bits()
+							}
+						),
+						hash: hash.try_into()?
+					})
 				})
-				.collect(),
+				.collect::<Result<_>>()?,
 			hash_reference_table_size: info.reference_chunk_size() as u32,
 			hash_reference_table_dummy: info.states_chunk_size() as u32
 		}
@@ -331,31 +313,36 @@ impl From<ResourceInfo> for RpkgResourceMeta {
 }
 
 #[cfg(feature = "rpkg-rs")]
-impl From<&ResourceInfo> for RpkgResourceMeta {
-	fn from(info: &ResourceInfo) -> RpkgResourceMeta {
+impl TryFrom<&ResourceInfo> for RpkgResourceMeta {
+	type Error = RpkgInteropError;
+
+	#[try_fn]
+	fn try_from(info: &ResourceInfo) -> Result<RpkgResourceMeta> {
 		RpkgResourceMeta {
 			hash_offset: info.data_offset(),
 			hash_size: info.compressed_size().unwrap_or(0) | (if info.is_scrambled() { 0x80000000 } else { 0x0 }),
 			hash_size_final: info.size(),
-			hash_value: info.rrid().to_hex_string(),
+			hash_value: info.rrid().try_into()?,
 			hash_path: None,
 			hash_size_in_memory: info.system_memory_requirement(),
 			hash_size_in_video_memory: info.video_memory_requirement(),
-			hash_resource_type: info.data_type(),
+			hash_resource_type: info.data_type().try_into()?,
 			hash_reference_data: info
 				.references()
 				.iter()
-				.map(|(hash, flag)| RpkgResourceReference {
-					flag: format!(
-						"{:02X}",
-						match flag {
-							ResourceReferenceFlags::Legacy(x) => x.into_bits(),
-							ResourceReferenceFlags::Standard(x) => x.into_bits()
-						}
-					),
-					hash: hash.to_hex_string()
+				.map(|(hash, flag)| {
+					Ok(RpkgResourceReference {
+						flag: format!(
+							"{:02X}",
+							match flag {
+								ResourceReferenceFlags::Legacy(x) => x.into_bits(),
+								ResourceReferenceFlags::Standard(x) => x.into_bits()
+							}
+						),
+						hash: hash.try_into()?
+					})
 				})
-				.collect(),
+				.collect::<Result<_>>()?,
 			hash_reference_table_size: info.reference_chunk_size() as u32,
 			hash_reference_table_dummy: info.states_chunk_size() as u32
 		}
