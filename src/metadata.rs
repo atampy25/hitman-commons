@@ -156,7 +156,7 @@ impl Display for RuntimeID {
 
 impl Debug for RuntimeID {
 	fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-		write!(f, "{}", self.0)
+		write!(f, "{self}")
 	}
 }
 
@@ -556,7 +556,15 @@ pub enum ReferenceType {
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[cfg_attr(
 	feature = "rune",
-	rune_functions(Self::infer_scrambled__meta, Self::infer_compressed__meta, Self::to_extended__meta)
+	rune_functions(
+		Self::infer_scrambled__meta,
+		Self::infer_compressed__meta,
+		Self::calculate_system_memory_requirement__meta,
+		Self::calculate_video_memory_requirement__meta,
+		Self::system_memory_requirement__meta,
+		Self::video_memory_requirement__meta,
+		Self::to_extended__meta
+	)
 )]
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -596,6 +604,96 @@ impl ResourceMetadata {
 			| "UICT" | "WSWT" | "AIBX" | "ASEB" => false,
 
 			_ => true
+		}
+	}
+
+	#[try_fn]
+	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::calculate_system_memory_requirement))]
+	pub fn calculate_system_memory_requirement(
+		resource_type: ResourceType,
+		data: &[u8]
+	) -> Result<u32, MetadataCalculationError> {
+		match resource_type.as_ref() {
+			"AIBX" | "AIBZ" | "AIRG" | "ASEB" | "ASET" | "ASVA" | "ATMD" | "BLOB" | "BMSK" | "BORG" | "BOXC"
+			| "CRMD" | "DITL" | "DLGE" | "ECPT" | "ENUM" | "ERES" | "GFXF" | "GFXI" | "GFXV" | "JSON" | "LINE"
+			| "LOCR" | "MATB" | "MATE" | "MATI" | "MATT" | "NAVP" | "ORES" | "PRIM" | "REPO" | "RTLV" | "SDEF"
+			| "TEXD" | "TEXT" | "UICT" | "VIDB" | "VTXD" | "WBNK" | "WSGT" | "WSWT" | "WWEM" | "WWES" | "WWEV"
+			| "TELI" | "CLNG" => 0xFFFFFFFF,
+
+			"AIBB" | "CBLU" | "CPPT" | "DSWB" | "ECPB" | "GIDX" | "TEMP" | "TBLU" | "UICB" | "WSGB" | "WSWB" => {
+				let mut cur = Cursor::new(data);
+				cur.seek(SeekFrom::Start(0x8))?;
+
+				let mut x = [0; 4];
+				cur.read_exact(&mut x)?;
+				u32::from_be_bytes(x)
+			}
+
+			"ALOC" => ((data.len() as f64) * 1.75) as u32,
+
+			"FXAS" | "MJBA" | "MRTN" | "MRTR" | "SCDA" => data.len() as u32,
+
+			"PREL" => (data.len() - 0x10) as u32,
+
+			"YSHP" => ((data.len() as f64) * 1.5) as u32,
+
+			"FXAC" | "HIKC" | "IMAP" | "SLMX" => todo!(),
+
+			_ => return Err(MetadataCalculationError::UnknownResourceType(resource_type))
+		}
+	}
+
+	#[try_fn]
+	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::calculate_video_memory_requirement))]
+	pub fn calculate_video_memory_requirement(
+		resource_type: ResourceType,
+		data: &[u8],
+		game_version: GameVersion
+	) -> Result<u32, MetadataCalculationError> {
+		match resource_type.as_ref() {
+			"AIBB" | "AIBX" | "AIBZ" | "AIRG" | "ASEB" | "ASET" | "ASVA" | "ATMD" | "BLOB" | "BMSK" | "BORG"
+			| "CBLU" | "CLNG" | "CPPT" | "CRMD" | "DITL" | "DLGE" | "DSWB" | "ECPB" | "ECPT" | "ENUM" | "ERES"
+			| "GFXF" | "GFXI" | "GFXV" | "JSON" | "LINE" | "LOCR" | "MATB" | "MATE" | "MATI" | "MATT" | "GIDX"
+			| "NAVP" | "ORES" | "PRIM" | "REPO" | "RTLV" | "SDEF" | "TBLU" | "TELI" | "TEMP" | "UICB" | "UICT"
+			| "VIDB" | "VTXD" | "WBNK" | "WSGB" | "WSGT" | "WSWB" | "WSWT" | "WWEM" | "WWES" | "WWEV" => 0xFFFFFFFF,
+
+			"ALOC" | "FXAC" | "FXAS" | "MJBA" | "MRTN" | "MRTR" | "PREL" | "SCDA" | "YSHP" => 0,
+
+			"TEXT" => {
+				#[cfg(feature = "glacier-texture")]
+				{
+					// NOTE: This is not fully accurate. In HITMAN 3, the TEXD data is required to calculate this, so it will just return 0.
+					glacier_texture::texture_map::TextureMap::from_memory(data, game_version.into())
+						.map_err(MetadataCalculationError::TextureMapError)?
+						.video_memory_requirement() as u32
+				}
+
+				#[cfg(not(feature = "glacier-texture"))]
+				{
+					// TODO: Calculate a proper estimate
+					0
+				}
+			}
+
+			"TEXD" => {
+				#[cfg(feature = "glacier-texture")]
+				{
+					// This is accurate across game versions.
+					glacier_texture::mipblock::MipblockData::from_memory(data, game_version.into())
+						.map_err(MetadataCalculationError::TextureMapError)?
+						.video_memory_requirement() as u32
+				}
+
+				#[cfg(not(feature = "glacier-texture"))]
+				{
+					// TODO: Calculate a proper estimate
+					0
+				}
+			}
+
+			"BOXC" | "HIKC" | "IMAP" | "SLMX" => todo!(),
+
+			_ => return Err(MetadataCalculationError::UnknownResourceType(resource_type))
 		}
 	}
 }
@@ -846,6 +944,20 @@ pub enum MetadataCalculationError {
 }
 
 impl ResourceMetadata {
+	#[cfg_attr(feature = "rune", rune::function(keep))]
+	pub fn system_memory_requirement(&self, data: &[u8]) -> Result<u32, MetadataCalculationError> {
+		Self::calculate_system_memory_requirement(self.resource_type, data)
+	}
+
+	#[cfg_attr(feature = "rune", rune::function(keep))]
+	pub fn video_memory_requirement(
+		&self,
+		data: &[u8],
+		game_version: GameVersion
+	) -> Result<u32, MetadataCalculationError> {
+		Self::calculate_video_memory_requirement(self.resource_type, data, game_version)
+	}
+
 	#[try_fn]
 	#[cfg_attr(feature = "rune", rune::function(keep))]
 	pub fn to_extended(
@@ -854,79 +966,8 @@ impl ResourceMetadata {
 		game_version: GameVersion
 	) -> Result<ExtendedResourceMetadata, MetadataCalculationError> {
 		ExtendedResourceMetadata {
-			system_memory_requirement: match self.resource_type.as_ref() {
-				"AIBX" | "AIBZ" | "AIRG" | "ASEB" | "ASET" | "ASVA" | "ATMD" | "BLOB" | "BMSK" | "BORG" | "BOXC"
-				| "CRMD" | "DITL" | "DLGE" | "ECPT" | "ENUM" | "ERES" | "GFXF" | "GFXI" | "GFXV" | "JSON" | "LINE"
-				| "LOCR" | "MATB" | "MATE" | "MATI" | "MATT" | "NAVP" | "ORES" | "PRIM" | "REPO" | "RTLV" | "SDEF"
-				| "TEXD" | "TEXT" | "UICT" | "VIDB" | "VTXD" | "WBNK" | "WSGT" | "WSWT" | "WWEM" | "WWES" | "WWEV"
-				| "TELI" | "CLNG" => 0xFFFFFFFF,
-
-				"AIBB" | "CBLU" | "CPPT" | "DSWB" | "ECPB" | "GIDX" | "TEMP" | "TBLU" | "UICB" | "WSGB" | "WSWB" => {
-					let mut cur = Cursor::new(data);
-					cur.seek(SeekFrom::Start(0x8))?;
-
-					let mut x = [0; 4];
-					cur.read_exact(&mut x)?;
-					u32::from_be_bytes(x)
-				}
-
-				"ALOC" => ((data.len() as f64) * 1.75) as u32,
-
-				"FXAS" | "MJBA" | "MRTN" | "MRTR" | "SCDA" => data.len() as u32,
-
-				"PREL" => (data.len() - 0x10) as u32,
-
-				"YSHP" => ((data.len() as f64) * 1.5) as u32,
-
-				"FXAC" | "HIKC" | "IMAP" | "SLMX" => todo!(),
-
-				_ => return Err(MetadataCalculationError::UnknownResourceType(self.resource_type))
-			},
-			video_memory_requirement: match self.resource_type.as_ref() {
-				"AIBB" | "AIBX" | "AIBZ" | "AIRG" | "ASEB" | "ASET" | "ASVA" | "ATMD" | "BLOB" | "BMSK" | "BORG"
-				| "CBLU" | "CLNG" | "CPPT" | "CRMD" | "DITL" | "DLGE" | "DSWB" | "ECPB" | "ECPT" | "ENUM" | "ERES"
-				| "GFXF" | "GFXI" | "GFXV" | "JSON" | "LINE" | "LOCR" | "MATB" | "MATE" | "MATI" | "MATT" | "GIDX"
-				| "NAVP" | "ORES" | "PRIM" | "REPO" | "RTLV" | "SDEF" | "TBLU" | "TELI" | "TEMP" | "UICB" | "UICT"
-				| "VIDB" | "VTXD" | "WBNK" | "WSGB" | "WSGT" | "WSWB" | "WSWT" | "WWEM" | "WWES" | "WWEV" => 0xFFFFFFFF,
-
-				"ALOC" | "FXAC" | "FXAS" | "MJBA" | "MRTN" | "MRTR" | "PREL" | "SCDA" | "YSHP" => 0,
-
-				"TEXT" => {
-					#[cfg(feature = "glacier-texture")]
-					{
-						// NOTE: This is not fully accurate. In HITMAN 3, the TEXD data is required to calculate this, so it will just return 0.
-						glacier_texture::texture_map::TextureMap::from_memory(data, game_version.into())
-							.map_err(MetadataCalculationError::TextureMapError)?
-							.video_memory_requirement() as u32
-					}
-
-					#[cfg(not(feature = "glacier-texture"))]
-					{
-						// TODO: Calculate a proper estimate
-						0
-					}
-				}
-
-				"TEXD" => {
-					#[cfg(feature = "glacier-texture")]
-					{
-						// This is accurate across game versions.
-						glacier_texture::mipblock::MipblockData::from_memory(data, game_version.into())
-							.map_err(MetadataCalculationError::TextureMapError)?
-							.video_memory_requirement() as u32
-					}
-
-					#[cfg(not(feature = "glacier-texture"))]
-					{
-						// TODO: Calculate a proper estimate
-						0
-					}
-				}
-
-				"BOXC" | "HIKC" | "IMAP" | "SLMX" => todo!(),
-
-				_ => return Err(MetadataCalculationError::UnknownResourceType(self.resource_type))
-			},
+			system_memory_requirement: self.system_memory_requirement(data)?,
+			video_memory_requirement: self.video_memory_requirement(data, game_version)?,
 			core_info: self
 		}
 	}
