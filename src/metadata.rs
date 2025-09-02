@@ -132,10 +132,10 @@ impl FromStr for RuntimeID {
 
 	#[try_fn]
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		if s.starts_with('0') {
-			RuntimeID::from_hash(s)?
-		} else {
+		if s.starts_with('[') {
 			RuntimeID::from_path(s)
+		} else {
+			RuntimeID::from_hash(s)?
 		}
 	}
 }
