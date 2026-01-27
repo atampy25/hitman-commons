@@ -449,6 +449,9 @@ mod detection {
 			let steam_path = match home_dir {
 				home if home_dir.join(".local/share/Steam").exists() => Some(home.join(".local/share/Steam")),
 				home if home_dir.join(".steam/steam").exists() => Some(home.join(".steam/steam")),
+				home if home_dir.join(".var/app/com.valvesoftware.Steam/.steam/steam").exists() => {
+					Some(home.join(".var/app/com.valvesoftware.Steam/.steam/steam"))
+				}
 				_ => None
 			};
 
