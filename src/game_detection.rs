@@ -401,7 +401,13 @@ mod detection {
 			let legendary_installed_path = home_dir
 				.join(".config/legendary/installed.json")
 				.exists()
-				.then_some(home_dir.join(".config/legendary/installed.json"));
+				.then_some(home_dir.join(".config/legendary/installed.json"))
+				.or_else(|| {
+					home_dir
+						.join(".config/heroic/legendaryConfig/legendary/installed.json")
+						.exists()
+						.then_some(home_dir.join(".config/heroic/legendaryConfig/legendary/installed.json"))
+				});
 
 			if let Some(legendary_installed_path) = legendary_installed_path {
 				let legendary_installed_data: Value = serde_json::from_slice(
