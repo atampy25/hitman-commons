@@ -13,7 +13,7 @@ use tryvial::try_fn;
 
 use crate::{
 	game::GameVersion,
-	hash_list::{CUSTOM_PATHS, HASH_LIST},
+	hash_list::{CUSTOM_PATHS, HASH_LIST, HashData},
 	rpkg_tool::RpkgResourceMeta
 };
 
@@ -197,6 +197,10 @@ impl RuntimeID {
 			.get(self)
 			.and_then(|data| data.path.to_owned())
 			.or_else(|| CUSTOM_PATHS.pin().get(self).cloned())
+	}
+
+	pub fn get_info(&self) -> Option<HashData> {
+		HASH_LIST.entries.load().get(self).cloned()
 	}
 
 	pub fn to_hash(&self) -> String {
