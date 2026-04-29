@@ -211,6 +211,15 @@ impl RuntimeID {
 	pub fn as_u64(self) -> u64 {
 		self.0
 	}
+
+	#[cfg(feature = "const")]
+	pub const fn from_u64_const(val: u64) -> Self {
+		if val < 0x00FFFFFFFFFFFFFF {
+			Self(val)
+		} else {
+			panic!("value too high; must be less than 00FFFFFFFFFFFFFF");
+		}
+	}
 }
 
 #[cfg(feature = "rune")]
