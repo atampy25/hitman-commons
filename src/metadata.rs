@@ -66,8 +66,8 @@ pub struct RuntimeID(u64);
 
 #[cfg(feature = "specta")]
 impl specta::Type for RuntimeID {
-	fn inline(_: &mut specta::TypeMap, _: specta::Generics<'_>) -> specta::DataType {
-		specta::DataType::Primitive(specta::datatype::PrimitiveType::String)
+	fn definition(types: &mut specta::Types) -> specta::datatype::DataType {
+		String::definition(types)
 	}
 }
 
@@ -292,8 +292,8 @@ impl schemars::JsonSchema for ResourceReference {
 
 #[cfg(feature = "specta")]
 impl specta::Type for ResourceReference {
-	fn inline(type_map: &mut specta::TypeMap, generics: specta::Generics<'_>) -> specta::DataType {
-		ResourceReferenceProxy::inline(type_map, generics)
+	fn definition(types: &mut specta::Types) -> specta::datatype::DataType {
+		ResourceReferenceProxy::definition(types)
 	}
 }
 
@@ -786,8 +786,8 @@ pub struct ResourceType([u8; 4]);
 
 #[cfg(feature = "specta")]
 impl specta::Type for ResourceType {
-	fn inline(_: &mut specta::TypeMap, _: specta::Generics<'_>) -> specta::DataType {
-		specta::DataType::Primitive(specta::datatype::PrimitiveType::String)
+	fn definition(types: &mut specta::Types) -> specta::datatype::DataType {
+		String::definition(types)
 	}
 }
 
