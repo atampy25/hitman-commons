@@ -9,6 +9,9 @@ pub mod resourcelib;
 #[cfg(feature = "game_detection")]
 pub mod game_detection;
 
+#[cfg(feature = "const")]
+pub mod macros;
+
 #[cfg(feature = "rune")]
 pub fn rune_install(ctx: &mut rune::Context, allow_dangerous: bool) -> Result<(), rune::ContextError> {
 	ctx.install(game::rune_module()?)?;
