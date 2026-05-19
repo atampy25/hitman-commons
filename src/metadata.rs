@@ -194,6 +194,19 @@ impl RuntimeID {
 			.or_else(|| CUSTOM_PATHS.pin().get(self).cloned())
 	}
 
+	pub fn get_path_or_hint(&self) -> Option<EcoString> {
+		HASH_LIST
+			.entries
+			.load()
+			.get(self)
+			.and_then(|data| {
+				data.path
+					.as_ref()
+					.map_or_else(|| data.hint.to_owned(), |x| Some(x.to_owned()))
+			})
+			.or_else(|| CUSTOM_PATHS.pin().get(self).cloned())
+	}
+
 	pub fn get_info(&self) -> Option<HashData> {
 		HASH_LIST.entries.load().get(self).cloned()
 	}
