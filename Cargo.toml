@@ -50,4 +50,4 @@ game_detection = [
 ]
 rune = ["dep:rune", "dep:better-rune-derive", "dep:serde_with"]
 rkyv = ["dep:rkyv"]
-const = ["dep:lhash"]
+macros = ["dep:lhash"]
