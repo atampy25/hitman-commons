@@ -1173,7 +1173,7 @@ macro_rules! rid {
 				}
 
 				let (prefix, _) = lower.split_at(bytes.len());
-				let digest: [u8; 16] = lhash::md5(prefix);
+				let digest: [u8; 16] = $crate::__priv::const_md5(prefix);
 
 				let mut val: u64 = 0;
 				let mut j: usize = 1;

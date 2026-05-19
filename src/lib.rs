@@ -26,3 +26,9 @@ pub fn rune_install(ctx: &mut rune::Context, allow_dangerous: bool) -> Result<()
 
 	Ok(())
 }
+
+#[doc(hidden)]
+pub mod __priv {
+	#[cfg(feature = "macros")]
+	pub use lhash::md5 as const_md5;
+}
