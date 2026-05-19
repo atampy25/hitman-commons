@@ -96,13 +96,8 @@ pub enum FromU64Error {
 impl TryFrom<u64> for RuntimeID {
 	type Error = FromU64Error;
 
-	#[try_fn]
 	fn try_from(value: u64) -> Result<Self, Self::Error> {
-		if value < 0x00FFFFFFFFFFFFFF {
-			Self(value)
-		} else {
-			return Err(FromU64Error::TooHigh);
-		}
+		Self::from_u64(value)
 	}
 }
 
@@ -205,6 +200,14 @@ impl RuntimeID {
 
 	pub fn to_hash(&self) -> String {
 		format!("{:016X}", self.0)
+	}
+
+	pub const fn from_u64(value: u64) -> Result<Self, FromU64Error> {
+		if value < 0x00FFFFFFFFFFFFFF {
+			Ok(Self(value))
+		} else {
+			Err(FromU64Error::TooHigh)
+		}
 	}
 
 	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::as_u64))]
@@ -1128,4 +1131,71 @@ impl TryFrom<&ResourceInfo> for ResourceMetadata {
 			scrambled: info.is_scrambled()
 		}
 	}
+}
+
+/// Create a constant [`RuntimeID`](crate::metadata::RuntimeID) from a resource path.
+///
+/// Same as [`RuntimeID::from_str`](crate::metadata::RuntimeID::from_str), but evaluated at compile time.
+///
+/// # Panics (const-eval)
+/// Panics if the given path is longer than 512 bytes.
+///
+/// # Example
+/// ```rust
+/// use hitman_commons::rid;
+/// use hitman_commons::metadata::RuntimeID;
+///
+/// const REPO: RuntimeID = rid!("[assembly:/repository/pro.repo].pc_repo");
+/// const REPO2: RuntimeID = rid!("00204D1AFD76AB13");
+///
+/// assert_eq!(REPO, "[assembly:/repository/pro.repo].pc_repo".parse().unwrap());
+/// assert_eq!(REPO2, "00204D1AFD76AB13".parse().unwrap());
+/// assert_eq!(REPO, REPO2);
+/// ```
+#[macro_export]
+#[cfg(feature = "macros")]
+macro_rules! rid {
+	($path:expr) => {
+		const {
+			let s = $path;
+			let bytes = s.as_bytes();
+			let id = if bytes[0] == b'[' {
+				let mut lower = [0u8; 512];
+				let mut i: usize = 0;
+				if bytes.len() > lower.len() {
+					panic!("path too long for const buffer (max 512 bytes)");
+				}
+
+				while i < bytes.len() {
+					let b = bytes[i];
+					lower[i] = if b >= b'A' && b <= b'Z' { b + 32 } else { b };
+					i += 1;
+				}
+
+				let (prefix, _) = lower.split_at(bytes.len());
+				let digest: [u8; 16] = lhash::md5(prefix);
+
+				let mut val: u64 = 0;
+				let mut j: usize = 1;
+				while j < 8 {
+					val |= (digest[j] as u64) << (8 * (7 - j));
+					j += 1;
+				}
+
+				val
+			} else if s.len() == 16 {
+				match u64::from_str_radix(s, 16) {
+					Ok(val) => val,
+					Err(_) => panic!("invalid hash")
+				}
+			} else {
+				panic!("invalid length")
+			};
+
+			match $crate::metadata::RuntimeID::from_u64(id) {
+				Ok(id) => id,
+				Err(_) => panic!("RuntimeID is invalid")
+			}
+		}
+	};
 }
