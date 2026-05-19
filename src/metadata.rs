@@ -787,6 +787,20 @@ pub struct ExtendedResourceMetadata {
 #[derive(PartialEq, Eq, Clone, Copy, Hash)]
 pub struct ResourceType([u8; 4]);
 
+impl ResourceType {
+	#[doc(hidden)]
+	pub const fn __from_const(s: [u8; 4]) -> Self {
+		let mut i = 0;
+		while i < 4 {
+			if s[i] < b'A' || s[i] > b'Z' {
+				panic!("invalid character");
+			}
+			i += 1;
+		}
+		Self(s)
+	}
+}
+
 #[cfg(feature = "specta")]
 impl specta::Type for ResourceType {
 	fn definition(types: &mut specta::Types) -> specta::datatype::DataType {
@@ -1133,12 +1147,12 @@ impl TryFrom<&ResourceInfo> for ResourceMetadata {
 	}
 }
 
-/// Create a constant [`RuntimeID`](crate::metadata::RuntimeID) from a resource path.
+/// Create a constant [`RuntimeID`](crate::metadata::RuntimeID) from a path or hash.
 ///
 /// Same as [`RuntimeID::from_str`](crate::metadata::RuntimeID::from_str), but evaluated at compile time.
 ///
 /// # Panics (const-eval)
-/// Panics if the given path is longer than 512 bytes.
+/// Panics if the given ID is invalid.
 ///
 /// # Example
 /// ```rust
@@ -1195,6 +1209,42 @@ macro_rules! rid {
 			match $crate::metadata::RuntimeID::from_u64(id) {
 				Ok(id) => id,
 				Err(_) => panic!("RuntimeID is invalid")
+			}
+		}
+	};
+}
+
+/// Create a constant [`ResourceType`](crate::metadata::ResourceType) from a string literal.
+///
+/// Same as [`ResourceType::from_str`](crate::metadata::ResourceType::from_str), but evaluated at compile time.
+///
+/// # Panics (const-eval)
+/// Panics if the given string is not a valid resource type.
+///
+/// # Example
+/// ```rust
+/// use hitman_commons::resource_type;
+/// use hitman_commons::metadata::ResourceType;
+///
+/// const TEMP: ResourceType = resource_type!("TEMP");
+///
+/// assert_eq!(TEMP, "TEMP".parse::<ResourceType>().unwrap());
+/// ```
+#[macro_export]
+#[cfg(feature = "macros")]
+macro_rules! resource_type {
+	($path:expr) => {
+		const {
+			let s = $path;
+
+			if s.len() == 4 {
+				let bytes = s.as_bytes();
+				let mut buf = [0u8; 4];
+				buf.copy_from_slice(bytes);
+
+				$crate::metadata::ResourceType::__from_const(buf)
+			} else {
+				panic!("invalid length")
 			}
 		}
 	};
