@@ -1,6 +1,7 @@
 use std::{
 	fmt::{Debug, Display},
 	io::{Cursor, Read, Seek, SeekFrom},
+	num::NonZeroU64,
 	str::{self, FromStr}
 };
 
@@ -62,7 +63,7 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[cfg_attr(feature = "rkyv", rkyv(derive(Hash, PartialEq, Eq)))]
 #[derive(PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
-pub struct RuntimeID(u64);
+pub struct RuntimeID(NonZeroU64);
 
 #[cfg(feature = "specta")]
 impl specta::Type for RuntimeID {
@@ -103,7 +104,7 @@ impl TryFrom<u64> for RuntimeID {
 
 impl From<RuntimeID> for u64 {
 	fn from(val: RuntimeID) -> Self {
-		val.0
+		val.as_u64()
 	}
 }
 
@@ -176,7 +177,7 @@ impl RuntimeID {
 			val |= u64::from(digest[i]) << (8 * (7 - i));
 		}
 
-		let id = Self(val);
+		let id = Self(unsafe { NonZeroU64::new_unchecked(if val == 0 { u64::MAX } else { val }) });
 
 		if !HASH_LIST.entries.load().contains_key(&id) {
 			CUSTOM_PATHS.pin().get_or_insert_with(id, || path.into());
@@ -217,7 +218,9 @@ impl RuntimeID {
 
 	pub const fn from_u64(value: u64) -> Result<Self, FromU64Error> {
 		if value < 0x00FFFFFFFFFFFFFF {
-			Ok(Self(value))
+			Ok(Self(unsafe {
+				NonZeroU64::new_unchecked(if value == 0 { u64::MAX } else { value })
+			}))
 		} else {
 			Err(FromU64Error::TooHigh)
 		}
@@ -225,7 +228,7 @@ impl RuntimeID {
 
 	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::as_u64))]
 	pub fn as_u64(self) -> u64 {
-		self.0
+		if self.0.get() == u64::MAX { 0 } else { self.0.get() }
 	}
 }
 
