@@ -145,7 +145,7 @@ impl Display for RuntimeID {
 		} else if let Some(path) = CUSTOM_PATHS.pin().get(self) {
 			write!(f, "{path}")
 		} else {
-			write!(f, "{:016X}", self.0)
+			write!(f, "{:016X}", self.as_u64())
 		}
 	}
 }
