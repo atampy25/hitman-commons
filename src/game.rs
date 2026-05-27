@@ -105,7 +105,7 @@ impl TryFrom<tonytools::Version> for GameVersion {
 			tonytools::Version::H2016 => GameVersion::H1,
 			tonytools::Version::H2 => GameVersion::H2,
 			tonytools::Version::H3 => GameVersion::H3,
-			tonytools::Version::Unknown => return Err(FromTonyToolsError::UnknownGameVersion)
+			tonytools::Version::Unknown | tonytools::Version::KNT => return Err(FromTonyToolsError::UnknownGameVersion)
 		}
 	}
 }
