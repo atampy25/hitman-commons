@@ -170,12 +170,10 @@ impl RuntimeID {
 
 	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::from_path))]
 	pub fn from_path(path: &str) -> Self {
-		let digest = md5::compute(path.to_ascii_lowercase());
+		let mut digest = fast_md5::digest(path.to_ascii_lowercase().as_bytes());
 
-		let mut val = 0u64;
-		for i in 1..8 {
-			val |= u64::from(digest[i]) << (8 * (7 - i));
-		}
+		digest[0] = 0;
+		let val = u64::from_be_bytes(digest[0..8].try_into().unwrap());
 
 		let id = Self(unsafe { NonZeroU64::new_unchecked(if val == 0 { u64::MAX } else { val }) });
 
