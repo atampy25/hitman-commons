@@ -6,7 +6,7 @@ pub mod rpkg_tool;
 #[cfg(feature = "resourcelib")]
 pub mod resourcelib;
 
-#[cfg(feature = "game_detection")]
+#[cfg(feature = "game-detection")]
 pub mod game_detection;
 
 #[cfg(feature = "rune")]
@@ -19,7 +19,7 @@ pub fn rune_install(ctx: &mut rune::Context, allow_dangerous: bool) -> Result<()
 	#[cfg(feature = "resourcelib")]
 	ctx.install(resourcelib::rune_module()?)?;
 
-	#[cfg(feature = "game_detection")]
+	#[cfg(feature = "game-detection")]
 	if allow_dangerous {
 		ctx.install(game_detection::rune_module()?)?;
 	}

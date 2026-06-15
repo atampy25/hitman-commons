@@ -37,13 +37,13 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 	module.ty::<HashList>()?;
 	module.ty::<HashData>()?;
 
-	#[cfg(feature = "hash_list")]
+	#[cfg(feature = "hash-list")]
 	module.ty::<DeserialisationError>()?;
 
 	module
 }
 
-#[cfg(feature = "hash_list")]
+#[cfg(feature = "hash-list")]
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct DeserialisedHashList {
@@ -51,7 +51,7 @@ struct DeserialisedHashList {
 	pub entries: Vec<DeserialisedEntry>
 }
 
-#[cfg(feature = "hash_list")]
+#[cfg(feature = "hash-list")]
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct DeserialisedEntry {
@@ -69,7 +69,7 @@ struct DeserialisedEntry {
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, CLONE))]
 #[cfg_attr(feature = "rune", rune_functions(Self::r_get))]
 #[cfg_attr(
-	all(feature = "rune", feature = "hash_list"),
+	all(feature = "rune", feature = "hash-list"),
 	rune_functions(Self::from_compressed__meta)
 )]
 #[derive(Debug)]
@@ -141,7 +141,7 @@ impl HashData {
 	}
 }
 
-#[cfg(feature = "hash_list")]
+#[cfg(feature = "hash-list")]
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::hitman_commons::hash_list))]
@@ -156,7 +156,7 @@ pub enum DeserialisationError {
 
 impl HashList {
 	/// Load a hash list from the compressed Brotli/Smile format used by https://github.com/glacier-modding/Hitman-Hashes.
-	#[cfg(feature = "hash_list")]
+	#[cfg(feature = "hash-list")]
 	#[try_fn]
 	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::from_compressed))]
 	pub fn from_compressed(data: &[u8]) -> Result<Self, DeserialisationError> {
@@ -191,7 +191,7 @@ impl HashList {
 	}
 
 	/// Replace the hash list with entries from the compressed Brotli/Smile format used by https://github.com/glacier-modding/Hitman-Hashes.
-	#[cfg(feature = "hash_list")]
+	#[cfg(feature = "hash-list")]
 	#[try_fn]
 	pub fn load_compressed(&self, data: &[u8]) -> Result<(), DeserialisationError> {
 		use std::sync::Arc;

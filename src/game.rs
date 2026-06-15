@@ -67,24 +67,34 @@ impl From<GameVersion> for rpkg_rs::WoaVersion {
 	}
 }
 
+#[derive(Error, Debug)]
+pub enum FromGlacierTextureError {
+	#[error("unknown game version")]
+	UnknownGameVersion
+}
+
 #[cfg(feature = "glacier-texture")]
-impl From<glacier_texture::WoaVersion> for GameVersion {
-	fn from(value: glacier_texture::WoaVersion) -> Self {
+impl TryFrom<glacier_texture::GlacierGame> for GameVersion {
+	type Error = FromGlacierTextureError;
+
+	#[try_fn]
+	fn try_from(value: glacier_texture::GlacierGame) -> Result<Self, Self::Error> {
 		match value {
-			glacier_texture::WoaVersion::HM2016 => GameVersion::H1,
-			glacier_texture::WoaVersion::HM2 => GameVersion::H2,
-			glacier_texture::WoaVersion::HM3 => GameVersion::H3
+			glacier_texture::GlacierGame::HM2016 => GameVersion::H1,
+			glacier_texture::GlacierGame::HM2 => GameVersion::H2,
+			glacier_texture::GlacierGame::HM3 => GameVersion::H3,
+			_ => return Err(FromGlacierTextureError::UnknownGameVersion)
 		}
 	}
 }
 
 #[cfg(feature = "glacier-texture")]
-impl From<GameVersion> for glacier_texture::WoaVersion {
+impl From<GameVersion> for glacier_texture::GlacierGame {
 	fn from(value: GameVersion) -> Self {
 		match value {
-			GameVersion::H1 => glacier_texture::WoaVersion::HM2016,
-			GameVersion::H2 => glacier_texture::WoaVersion::HM2,
-			GameVersion::H3 => glacier_texture::WoaVersion::HM3
+			GameVersion::H1 => glacier_texture::GlacierGame::HM2016,
+			GameVersion::H2 => glacier_texture::GlacierGame::HM2,
+			GameVersion::H3 => glacier_texture::GlacierGame::HM3
 		}
 	}
 }
