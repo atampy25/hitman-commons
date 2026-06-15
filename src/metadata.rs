@@ -1,4 +1,5 @@
 use std::{
+	borrow::Cow,
 	fmt::{Debug, Display},
 	io::{Cursor, Read, Seek, SeekFrom},
 	num::NonZeroU64,
@@ -6,6 +7,7 @@ use std::{
 };
 
 use ecow::EcoString;
+use regex::Regex;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +15,7 @@ use thiserror::Error;
 use tryvial::try_fn;
 
 use crate::{
-	game::GameVersion,
+	game::{GamePlatform, GlacierGame},
 	hash_list::{CUSTOM_PATHS, HASH_LIST, HashData},
 	rpkg_tool::RpkgResourceMeta
 };
@@ -21,11 +23,11 @@ use crate::{
 #[cfg(feature = "rune")]
 #[try_fn]
 pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
-	let mut module = rune::Module::with_crate_item("hitman_commons", ["metadata"])?;
+	let mut module = rune::Module::with_crate_item("glacier_commons", ["metadata"])?;
 
-	module.ty::<RuntimeID>()?;
+	module.ty::<ResourceID>()?;
 	module.ty::<FromU64Error>()?;
-	module.ty::<RuntimeIDFromHashError>()?;
+	module.ty::<ResourceIDFromHashError>()?;
 	module.ty::<ResourceReference>()?;
 	module.ty::<ReferenceFlags>()?;
 	module.ty::<ReferenceType>()?;
@@ -47,7 +49,7 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 	derive(serde_with::SerializeDisplay, serde_with::DeserializeFromStr)
 )]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(
 	feature = "rune",
@@ -57,25 +59,27 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 		Self::as_u64__meta,
 		Self::r_get_path,
 		Self::r_from_str,
-		Self::r_from_u64
+		Self::r_from_u64,
+		Self::as_u64_with_platform_tag__meta,
+		Self::as_u64_with_platform_path__meta
 	)
 )]
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[cfg_attr(feature = "rkyv", rkyv(derive(Hash, PartialEq, Eq)))]
 #[derive(PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
-pub struct RuntimeID(NonZeroU64);
+pub struct ResourceID(NonZeroU64);
 
 #[cfg(feature = "specta")]
-impl specta::Type for RuntimeID {
+impl specta::Type for ResourceID {
 	fn definition(types: &mut specta::Types) -> specta::datatype::DataType {
 		String::definition(types)
 	}
 }
 
 #[cfg(feature = "schemars")]
-impl schemars::JsonSchema for RuntimeID {
+impl schemars::JsonSchema for ResourceID {
 	fn schema_name() -> std::borrow::Cow<'static, str> {
-		std::borrow::Cow::Borrowed("RuntimeID")
+		std::borrow::Cow::Borrowed("ResourceID")
 	}
 
 	fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
@@ -87,14 +91,14 @@ impl schemars::JsonSchema for RuntimeID {
 
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum FromU64Error {
-	#[error("value too high; must be less than 00FFFFFFFFFFFFFF")]
+	#[error("value too high; must be less than 00FFFFFFFFFFFFFF and platform tag must be less than 5")]
 	TooHigh
 }
 
-impl TryFrom<u64> for RuntimeID {
+impl TryFrom<u64> for ResourceID {
 	type Error = FromU64Error;
 
 	fn try_from(value: u64) -> Result<Self, Self::Error> {
@@ -102,41 +106,41 @@ impl TryFrom<u64> for RuntimeID {
 	}
 }
 
-impl From<RuntimeID> for u64 {
-	fn from(val: RuntimeID) -> Self {
+impl From<ResourceID> for u64 {
+	fn from(val: ResourceID) -> Self {
 		val.as_u64()
 	}
 }
 
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
-pub enum RuntimeIDFromHashError {
+pub enum ResourceIDFromHashError {
 	#[error("invalid u64: {0}")]
 	InvalidNumber(#[from] std::num::ParseIntError),
 
 	#[error("invalid length")]
 	InvalidLength,
 
-	#[error("invalid RuntimeID: {0}")]
+	#[error("invalid ResourceID: {0}")]
 	InvalidID(#[from] FromU64Error)
 }
 
-impl FromStr for RuntimeID {
-	type Err = RuntimeIDFromHashError;
+impl FromStr for ResourceID {
+	type Err = ResourceIDFromHashError;
 
 	#[try_fn]
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		if s.starts_with('[') {
-			RuntimeID::from_path(s)
+			ResourceID::from_path(s)
 		} else {
-			RuntimeID::from_hash(s)?
+			ResourceID::from_hash(s)?
 		}
 	}
 }
 
-impl Display for RuntimeID {
+impl Display for ResourceID {
 	fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
 		if let Some(data) = HASH_LIST.entries.load().get(self)
 			&& let Some(path) = data.path.as_ref()
@@ -150,30 +154,53 @@ impl Display for RuntimeID {
 	}
 }
 
-impl Debug for RuntimeID {
+impl Debug for ResourceID {
 	fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
 		write!(f, "{self}")
 	}
 }
 
-impl RuntimeID {
+#[static_init::dynamic]
+pub(crate) static NON_PLATFORM_REGEX: Regex = Regex::new(r"\].([a-z]+)$").unwrap();
+
+/// For identifying platform-specific paths from the Hitman trilogy.
+#[static_init::dynamic]
+pub(crate) static PLATFORM_REGEX: Regex = Regex::new(&format!(
+	r"\].((?:{})_)([a-z]+)$",
+	["pc", "macos", "ios", "orbis", "ps5", "durango", "scarlett", "izumo"].join("|")
+))
+.unwrap();
+
+impl ResourceID {
 	#[try_fn]
 	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::from_hash))]
-	pub fn from_hash(hash: &str) -> Result<Self, RuntimeIDFromHashError> {
+	pub fn from_hash(hash: &str) -> Result<Self, ResourceIDFromHashError> {
 		if hash.len() != 16 {
-			return Err(RuntimeIDFromHashError::InvalidLength);
+			return Err(ResourceIDFromHashError::InvalidLength);
 		}
 
-		let val = u64::from_str_radix(hash, 16).map_err(RuntimeIDFromHashError::InvalidNumber)?;
-		val.try_into().map_err(RuntimeIDFromHashError::InvalidID)?
+		let val = u64::from_str_radix(hash, 16).map_err(ResourceIDFromHashError::InvalidNumber)?;
+		val.try_into().map_err(ResourceIDFromHashError::InvalidID)?
+	}
+
+	/// MD5 hash the given path (must be lowercase) and zero the most significant byte.
+	pub(crate) fn md5(path: &str) -> u64 {
+		let mut digest = fast_md5::digest(path.as_bytes());
+		digest[0] = 0;
+		u64::from_be_bytes(digest[0..8].try_into().unwrap())
 	}
 
 	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::from_path))]
 	pub fn from_path(path: &str) -> Self {
-		let mut digest = fast_md5::digest(path.to_ascii_lowercase().as_bytes());
+		let path = if !path.as_bytes().iter().any(u8::is_ascii_uppercase) {
+			Cow::Borrowed(path)
+		} else {
+			Cow::Owned(path.to_ascii_lowercase())
+		};
 
-		digest[0] = 0;
-		let val = u64::from_be_bytes(digest[0..8].try_into().unwrap());
+		let path = PLATFORM_REGEX.replace(&path, "].$2");
+
+		let val = Self::md5(&path);
 
 		let id = Self(unsafe { NonZeroU64::new_unchecked(if val == 0 { u64::MAX } else { val }) });
 
@@ -214,8 +241,20 @@ impl RuntimeID {
 		format!("{:016X}", self.0)
 	}
 
-	pub const fn from_u64(value: u64) -> Result<Self, FromU64Error> {
-		if value < 0x00FFFFFFFFFFFFFF {
+	pub fn from_u64(value: u64) -> Result<Self, FromU64Error> {
+		if value < 0x04FFFFFFFFFFFFFF {
+			let value = value & 0x00FFFFFFFFFFFFFF;
+			let id = Self(unsafe { NonZeroU64::new_unchecked(if value == 0 { u64::MAX } else { value }) });
+			Ok(HASH_LIST.entries.load().get(&id).map(|entry| entry.hash).unwrap_or(id))
+		} else {
+			Err(FromU64Error::TooHigh)
+		}
+	}
+
+	#[doc(hidden)]
+	pub const fn __from_const(value: u64) -> Result<Self, FromU64Error> {
+		if value < 0x04FFFFFFFFFFFFFF {
+			let value = value & 0x00FFFFFFFFFFFFFF;
 			Ok(Self(unsafe {
 				NonZeroU64::new_unchecked(if value == 0 { u64::MAX } else { value })
 			}))
@@ -224,16 +263,34 @@ impl RuntimeID {
 		}
 	}
 
+	/// Get the raw u64 value of this ResourceID, with no platform tag.
+	/// Note that this will not be a valid RuntimeID for any game version unless there is no known path for this ResourceID (in which case the original hash given will be reproduced without any platform tag).
 	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::as_u64))]
 	pub fn as_u64(self) -> u64 {
 		if self.0.get() == u64::MAX { 0 } else { self.0.get() }
 	}
+
+	/// Get the u64 value of this ResourceID, with the platform tag in the most significant byte (if the platform has a known tag).
+	/// This is the format used by 007: First Light.
+	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::as_u64_with_platform_tag))]
+	pub fn as_u64_with_platform_tag(self, platform: GamePlatform) -> Option<u64> {
+		platform.tag().map(|tag| self.as_u64() | ((tag as u64) << 56))
+	}
+
+	/// Get the u64 value of this ResourceID, as calculated by including the platform codename in the hashed path.
+	/// This is the format used by the Hitman trilogy.
+	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::as_u64_with_platform_path))]
+	pub fn as_u64_with_platform_path(self, platform: GamePlatform) -> u64 {
+		self.get_path()
+			.map(|path| Self::md5(&NON_PLATFORM_REGEX.replace(&path, format!("].{}_$1", platform.codename()))))
+			.unwrap_or(self.as_u64())
+	}
 }
 
 #[cfg(feature = "rune")]
-impl RuntimeID {
+impl ResourceID {
 	#[rune::function(path = Self::from_str)]
-	fn r_from_str(s: &str) -> Result<Self, RuntimeIDFromHashError> {
+	fn r_from_str(s: &str) -> Result<Self, ResourceIDFromHashError> {
 		Self::from_str(s)
 	}
 
@@ -249,50 +306,50 @@ impl RuntimeID {
 }
 
 #[cfg(feature = "rpkg-rs")]
-impl TryFrom<rpkg_rs::resource::runtime_resource_id::RuntimeResourceID> for RuntimeID {
-	type Error = RuntimeIDFromHashError;
+impl TryFrom<rpkg_rs::resource::runtime_resource_id::RuntimeResourceID> for ResourceID {
+	type Error = ResourceIDFromHashError;
 
 	#[try_fn]
 	fn try_from(val: rpkg_rs::resource::runtime_resource_id::RuntimeResourceID) -> Result<Self, Self::Error> {
 		// TODO: We should be able to use the u64 directly instead of having to convert to/from a string.
-		RuntimeID::from_hash(&val.to_hex_string())?
+		ResourceID::from_hash(&val.to_hex_string())?
 	}
 }
 
 #[cfg(feature = "rpkg-rs")]
-impl TryFrom<&rpkg_rs::resource::runtime_resource_id::RuntimeResourceID> for RuntimeID {
-	type Error = RuntimeIDFromHashError;
+impl TryFrom<&rpkg_rs::resource::runtime_resource_id::RuntimeResourceID> for ResourceID {
+	type Error = ResourceIDFromHashError;
 
 	#[try_fn]
 	fn try_from(val: &rpkg_rs::resource::runtime_resource_id::RuntimeResourceID) -> Result<Self, Self::Error> {
 		// TODO: We should be able to use the u64 directly instead of having to convert to/from a string.
-		RuntimeID::from_hash(&val.to_hex_string())?
+		ResourceID::from_hash(&val.to_hex_string())?
 	}
 }
 
 #[cfg(feature = "rpkg-rs")]
-impl From<RuntimeID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-	fn from(val: RuntimeID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
+impl From<ResourceID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
+	fn from(val: ResourceID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
 		rpkg_rs::resource::runtime_resource_id::RuntimeResourceID::from(u64::from(val))
 	}
 }
 
 #[cfg(feature = "rpkg-rs")]
-impl From<&RuntimeID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-	fn from(val: &RuntimeID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
+impl From<&ResourceID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
+	fn from(val: &ResourceID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
 		rpkg_rs::resource::runtime_resource_id::RuntimeResourceID::from(u64::from(*val))
 	}
 }
 
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ResourceReference {
-	pub resource: RuntimeID,
+	pub resource: ResourceID,
 	pub flags: ReferenceFlags
 }
 
@@ -319,9 +376,9 @@ impl specta::Type for ResourceReference {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(untagged))]
 enum ResourceReferenceProxy {
-	RuntimeID(RuntimeID),
+	ResourceID(ResourceID),
 	ReferenceWithFlags {
-		resource: RuntimeID,
+		resource: ResourceID,
 
 		#[cfg_attr(feature = "serde", serde(flatten))]
 		flags: ReferenceFlags
@@ -335,7 +392,7 @@ impl Serialize for ResourceReference {
 		S: serde::Serializer
 	{
 		if is_default_flags(&self.flags) {
-			ResourceReferenceProxy::RuntimeID(self.resource.to_owned()).serialize(serializer)
+			ResourceReferenceProxy::ResourceID(self.resource.to_owned()).serialize(serializer)
 		} else {
 			ResourceReferenceProxy::ReferenceWithFlags {
 				resource: self.resource.to_owned(),
@@ -353,7 +410,7 @@ impl<'de> Deserialize<'de> for ResourceReference {
 		D: serde::Deserializer<'de>
 	{
 		ResourceReferenceProxy::deserialize(deserializer).map(|x| match x {
-			ResourceReferenceProxy::RuntimeID(resource) => Self {
+			ResourceReferenceProxy::ResourceID(resource) => Self {
 				resource,
 				flags: Default::default()
 			},
@@ -368,7 +425,7 @@ impl<'de> Deserialize<'de> for ResourceReference {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[cfg_attr(
@@ -499,7 +556,8 @@ impl ReferenceFlags {
 				0b0000_0000 => ReferenceType::Install,
 				0b0100_0000 => ReferenceType::Normal,
 				0b1000_0000 => ReferenceType::Weak,
-				_ => ReferenceType::Normal
+				0b1100_0000 => ReferenceType::Streamed,
+				_ => unreachable!()
 			},
 			acquired: (flag & 0b0010_0000) != 0,
 			language_code: flag & 0b0001_1111
@@ -514,7 +572,8 @@ impl ReferenceFlags {
 			ReferenceType::Weak => 0b0000_0100,
 			ReferenceType::Media => 0b0100_0000,
 			ReferenceType::State => 0b0010_0000,
-			ReferenceType::EntityType => 0b1001_0000
+			ReferenceType::EntityType => 0b1001_0000,
+			ReferenceType::Streamed => 0b0000_0100
 		};
 
 		if self.acquired {
@@ -532,6 +591,7 @@ impl ReferenceFlags {
 				ReferenceType::Install => 0,
 				ReferenceType::Normal => 1,
 				ReferenceType::Weak => 2,
+				ReferenceType::Streamed => 3,
 				ReferenceType::Media => 2,
 				ReferenceType::State => 1,
 				ReferenceType::EntityType => 0
@@ -544,7 +604,7 @@ impl ReferenceFlags {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Default)]
@@ -560,6 +620,9 @@ pub enum ReferenceType {
 	Weak,
 
 	#[cfg_attr(feature = "rune", rune(constructor))]
+	Streamed,
+
+	#[cfg_attr(feature = "rune", rune(constructor))]
 	Media, // same as Weak in modern format
 
 	#[cfg_attr(feature = "rune", rune(constructor))]
@@ -572,7 +635,7 @@ pub enum ReferenceType {
 /// Core information about a resource.
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[cfg_attr(
@@ -590,7 +653,7 @@ pub enum ReferenceType {
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ResourceMetadata {
-	pub id: RuntimeID,
+	pub id: ResourceID,
 	pub resource_type: ResourceType,
 	pub compressed: bool,
 	pub scrambled: bool,
@@ -669,7 +732,7 @@ impl ResourceMetadata {
 	pub fn calculate_video_memory_requirement(
 		resource_type: ResourceType,
 		data: &[u8],
-		game_version: GameVersion
+		game_version: GlacierGame
 	) -> Result<u32, MetadataCalculationError> {
 		match resource_type.as_ref() {
 			"AIBB" | "AIBX" | "AIBZ" | "AIRG" | "ASEB" | "ASET" | "ASVA" | "ATMD" | "BLOB" | "BMSK" | "BORG"
@@ -722,7 +785,7 @@ impl ResourceMetadata {
 #[cfg(feature = "serde")]
 #[derive(Serialize, Deserialize)]
 struct ResourceMetadataProxy {
-	id: RuntimeID,
+	id: ResourceID,
 
 	#[serde(rename = "type")]
 	resource_type: ResourceType,
@@ -776,7 +839,7 @@ impl<'de> Deserialize<'de> for ResourceMetadata {
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
@@ -794,7 +857,7 @@ pub struct ExtendedResourceMetadata {
 	derive(serde_with::SerializeDisplay, serde_with::DeserializeFromStr)
 )]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_functions(Self::r_from_str, Self::r_as_string))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
@@ -850,7 +913,7 @@ impl From<ResourceType> for Vec<u8> {
 
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum ResourceTypeError {
 	#[error("invalid length")]
@@ -964,7 +1027,7 @@ impl ResourceType {
 
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum MetadataCalculationError {
 	#[error("seek error: {0}")]
@@ -988,7 +1051,7 @@ impl ResourceMetadata {
 	pub fn video_memory_requirement(
 		&self,
 		data: &[u8],
-		game_version: GameVersion
+		game_version: GlacierGame
 	) -> Result<u32, MetadataCalculationError> {
 		Self::calculate_video_memory_requirement(self.resource_type, data, game_version)
 	}
@@ -998,7 +1061,7 @@ impl ResourceMetadata {
 	pub fn to_extended(
 		self,
 		data: &[u8],
-		game_version: GameVersion
+		game_version: GlacierGame
 	) -> Result<ExtendedResourceMetadata, MetadataCalculationError> {
 		ExtendedResourceMetadata {
 			system_memory_requirement: self.system_memory_requirement(data)?,
@@ -1010,7 +1073,7 @@ impl ResourceMetadata {
 
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum FromRpkgResourceMetaError {
 	#[error("invalid flag: {0}")]
@@ -1079,11 +1142,11 @@ use rpkg_rs::resource::resource_info::ResourceInfo;
 #[cfg(feature = "rpkg-rs")]
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::metadata))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::metadata))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum FromResourceInfoError {
-	#[error("invalid RuntimeID: {0}")]
-	InvalidID(#[from] RuntimeIDFromHashError),
+	#[error("invalid ResourceID: {0}")]
+	InvalidID(#[from] ResourceIDFromHashError),
 
 	#[error("invalid resource type")]
 	InvalidResourceType
@@ -1097,14 +1160,14 @@ impl TryFrom<&ResourceInfo> for ExtendedResourceMetadata {
 	fn try_from(info: &ResourceInfo) -> Result<ExtendedResourceMetadata, Self::Error> {
 		ExtendedResourceMetadata {
 			core_info: ResourceMetadata {
-				id: RuntimeID::try_from(*info.rrid()).map_err(FromResourceInfoError::InvalidID)?,
+				id: ResourceID::try_from(*info.rrid()).map_err(FromResourceInfoError::InvalidID)?,
 				resource_type: info.data_type().try_into().unwrap(),
 				references: info
 					.references()
 					.iter()
 					.map(|(id, flags)| {
 						Ok::<_, Self::Error>(ResourceReference {
-							resource: RuntimeID::try_from(*id).map_err(FromResourceInfoError::InvalidID)?,
+							resource: ResourceID::try_from(*id).map_err(FromResourceInfoError::InvalidID)?,
 							flags: ReferenceFlags {
 								reference_type: match flags.reference_type() {
 									rpkg_rs::resource::resource_package::ReferenceType::INSTALL => {
@@ -1135,14 +1198,14 @@ impl TryFrom<&ResourceInfo> for ResourceMetadata {
 	#[try_fn]
 	fn try_from(info: &ResourceInfo) -> Result<ResourceMetadata, Self::Error> {
 		ResourceMetadata {
-			id: RuntimeID::try_from(*info.rrid()).map_err(FromResourceInfoError::InvalidID)?,
+			id: ResourceID::try_from(*info.rrid()).map_err(FromResourceInfoError::InvalidID)?,
 			resource_type: info.data_type().try_into().unwrap(),
 			references: info
 				.references()
 				.iter()
 				.map(|(id, flags)| {
 					Ok::<_, Self::Error>(ResourceReference {
-						resource: RuntimeID::try_from(*id).map_err(FromResourceInfoError::InvalidID)?,
+						resource: ResourceID::try_from(*id).map_err(FromResourceInfoError::InvalidID)?,
 						flags: ReferenceFlags {
 							reference_type: match flags.reference_type() {
 								rpkg_rs::resource::resource_package::ReferenceType::INSTALL => ReferenceType::Install,
@@ -1161,24 +1224,25 @@ impl TryFrom<&ResourceInfo> for ResourceMetadata {
 	}
 }
 
-/// Create a constant [`RuntimeID`](crate::metadata::RuntimeID) from a path or hash.
+/// Create a constant [`ResourceID`](crate::metadata::ResourceID) from a path or hash.
 ///
-/// Same as [`RuntimeID::from_str`](crate::metadata::RuntimeID::from_str), but evaluated at compile time.
+/// Same as [`ResourceID::from_str`](crate::metadata::ResourceID::from_str), but evaluated at compile time.
+///
+/// NOTE: You should ensure that the path provided does not contain a platform prefix - this will not be accounted for, unlike the normal `from_str` method.
 ///
 /// # Panics (const-eval)
 /// Panics if the given ID is invalid.
 ///
 /// # Example
 /// ```rust
-/// use hitman_commons::rid;
-/// use hitman_commons::metadata::RuntimeID;
+/// use glacier_commons::rid;
+/// use glacier_commons::metadata::ResourceID;
+/// # use glacier_commons::game::GamePlatform;
 ///
-/// const REPO: RuntimeID = rid!("[assembly:/repository/pro.repo].pc_repo");
-/// const REPO2: RuntimeID = rid!("00204D1AFD76AB13");
+/// const REPO: ResourceID = rid!("[assembly:/repository/pro.repo].repo");
 ///
-/// assert_eq!(REPO, "[assembly:/repository/pro.repo].pc_repo".parse().unwrap());
-/// assert_eq!(REPO2, "00204D1AFD76AB13".parse().unwrap());
-/// assert_eq!(REPO, REPO2);
+/// assert_eq!(REPO, "[assembly:/repository/pro.repo].repo".parse().unwrap());
+/// assert_eq!(REPO.as_u64_with_platform_path(GamePlatform::PC), 0x00204D1AFD76AB13);
 /// ```
 #[macro_export]
 #[cfg(feature = "macros")]
@@ -1220,9 +1284,9 @@ macro_rules! rid {
 				panic!("invalid length")
 			};
 
-			match $crate::metadata::RuntimeID::from_u64(id) {
+			match $crate::metadata::ResourceID::__from_const(id) {
 				Ok(id) => id,
-				Err(_) => panic!("RuntimeID is invalid")
+				Err(_) => panic!("ResourceID is invalid")
 			}
 		}
 	};
@@ -1237,8 +1301,8 @@ macro_rules! rid {
 ///
 /// # Example
 /// ```rust
-/// use hitman_commons::resource_type;
-/// use hitman_commons::metadata::ResourceType;
+/// use glacier_commons::resource_type;
+/// use glacier_commons::metadata::ResourceType;
 ///
 /// const TEMP: ResourceType = resource_type!("TEMP");
 ///

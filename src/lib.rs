@@ -3,9 +3,6 @@ pub mod hash_list;
 pub mod metadata;
 pub mod rpkg_tool;
 
-#[cfg(feature = "resourcelib")]
-pub mod resourcelib;
-
 #[cfg(feature = "game-detection")]
 pub mod game_detection;
 
@@ -15,9 +12,6 @@ pub fn rune_install(ctx: &mut rune::Context, allow_dangerous: bool) -> Result<()
 	ctx.install(metadata::rune_module()?)?;
 	ctx.install(rpkg_tool::rune_module()?)?;
 	ctx.install(hash_list::rune_module()?)?;
-
-	#[cfg(feature = "resourcelib")]
-	ctx.install(resourcelib::rune_module()?)?;
 
 	#[cfg(feature = "game-detection")]
 	if allow_dangerous {

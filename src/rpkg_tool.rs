@@ -7,13 +7,13 @@ use tryvial::try_fn;
 use serde::{Deserialize, Serialize};
 
 use crate::metadata::{
-	ExtendedResourceMetadata, FromU64Error, ResourceType, ResourceTypeError, RuntimeID, RuntimeIDFromHashError
+	ExtendedResourceMetadata, FromU64Error, ResourceID, ResourceIDFromHashError, ResourceType, ResourceTypeError
 };
 
 #[cfg(feature = "rune")]
 #[try_fn]
 pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
-	let mut module = rune::Module::with_crate_item("hitman_commons", ["rpkg_tool"])?;
+	let mut module = rune::Module::with_crate_item("glacier_commons", ["rpkg_tool"])?;
 
 	module.ty::<RpkgResourceMeta>()?;
 	module.ty::<RpkgResourceReference>()?;
@@ -25,7 +25,7 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::rpkg_tool))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(feature = "rune", rune_functions(Self::r_new))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -39,16 +39,16 @@ pub struct RpkgResourceMeta {
 	pub hash_size_final: u32,
 	pub hash_size_in_memory: u32,
 	pub hash_size_in_video_memory: u32,
-	pub hash_value: RuntimeID,
+	pub hash_value: ResourceID,
 
 	#[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-	pub hash_path: Option<RuntimeID>
+	pub hash_path: Option<ResourceID>
 }
 
 #[cfg(feature = "rune")]
 impl RpkgResourceMeta {
 	#[rune::function(path = Self::new)]
-	pub fn r_new(id: RuntimeID, resource_type: ResourceType) -> Self {
+	pub fn r_new(id: ResourceID, resource_type: ResourceType) -> Self {
 		Self {
 			hash_offset: 0,
 			hash_reference_data: Vec::new(),
@@ -69,13 +69,13 @@ impl RpkgResourceMeta {
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::rpkg_tool))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RpkgResourceReference {
 	#[cfg_attr(feature = "rune", rune(get, set))]
-	pub hash: RuntimeID,
+	pub hash: ResourceID,
 
 	#[cfg_attr(feature = "rune", rune(get, set))]
 	pub flag: String
@@ -85,7 +85,7 @@ type Result<T, E = RpkgInteropError> = std::result::Result<T, E>;
 
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::rpkg_tool))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum RpkgInteropError {
 	#[error("seek error: {0}")]
@@ -97,11 +97,11 @@ pub enum RpkgInteropError {
 	#[error("invalid hex value: {0}")]
 	InvalidHex(#[from] std::num::ParseIntError),
 
-	#[error("invalid RuntimeID: {0}")]
-	InvalidHash(#[from] RuntimeIDFromHashError),
+	#[error("invalid ResourceID: {0}")]
+	InvalidHash(#[from] ResourceIDFromHashError),
 
-	#[error("invalid RuntimeID: {0}")]
-	InvalidRuntimeID(#[from] FromU64Error),
+	#[error("invalid ResourceID: {0}")]
+	InvalidResourceID(#[from] FromU64Error),
 
 	#[error("invalid resource type: {0}")]
 	InvalidResourceType(#[from] ResourceTypeError)
