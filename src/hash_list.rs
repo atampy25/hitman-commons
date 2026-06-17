@@ -95,6 +95,7 @@ impl Clone for HashList {
 #[cfg_attr(feature = "rune", rune(constructor_fn = Self::rune_construct))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct HashData {
+	#[cfg_attr(feature = "rune", rune(get, set))]
 	pub hash: ResourceID,
 
 	#[cfg_attr(feature = "rune", rune(get, set))]
@@ -106,8 +107,9 @@ pub struct HashData {
 
 #[cfg(feature = "rune")]
 impl HashData {
-	fn rune_construct(resource_type: ResourceType, path: Option<String>, hint: Option<String>) -> Self {
+	fn rune_construct(hash: ResourceID, resource_type: ResourceType, path: Option<String>, hint: Option<String>) -> Self {
 		Self {
+			hash,
 			resource_type,
 			path: path.map(|x| x.into()),
 			hint: hint.map(|x| x.into())

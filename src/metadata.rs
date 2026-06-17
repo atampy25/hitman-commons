@@ -327,20 +327,6 @@ impl TryFrom<&rpkg_rs::resource::runtime_resource_id::RuntimeResourceID> for Res
 	}
 }
 
-#[cfg(feature = "rpkg-rs")]
-impl From<ResourceID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-	fn from(val: ResourceID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-		rpkg_rs::resource::runtime_resource_id::RuntimeResourceID::from(u64::from(val))
-	}
-}
-
-#[cfg(feature = "rpkg-rs")]
-impl From<&ResourceID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-	fn from(val: &ResourceID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-		rpkg_rs::resource::runtime_resource_id::RuntimeResourceID::from(u64::from(*val))
-	}
-}
-
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::glacier_commons::metadata))]
