@@ -172,7 +172,7 @@ pub enum DownloadError {
 }
 
 impl HashList {
-	/// Load a hash list from the compressed Brotli/Smile format used by https://github.com/glacier-modding/Hitman-Hashes.
+	/// Load a hash list from the compressed Brotli/Smile format used by https://github.com/glacier-modding/Game-Hashes.
 	#[cfg(feature = "hash-list")]
 	#[tryvial::try_fn]
 	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::from_compressed))]
@@ -209,7 +209,7 @@ impl HashList {
 		}
 	}
 
-	/// Replace the hash list with entries from the compressed Brotli/Smile format used by https://github.com/glacier-modding/Hitman-Hashes.
+	/// Replace the hash list with entries from the compressed Brotli/Smile format used by https://github.com/glacier-modding/Game-Hashes.
 	#[cfg(feature = "hash-list")]
 	#[tryvial::try_fn]
 	pub fn load_compressed(&self, data: &[u8]) -> Result<(), DeserialisationError> {
@@ -244,13 +244,13 @@ impl HashList {
 	}
 
 	pub const VERSION_ENDPOINT: &str =
-		"https://github.com/glacier-modding/Hitman-Hashes/releases/latest/download/version";
+		"https://github.com/glacier-modding/Game-Hashes/releases/latest/download/version";
 
 	pub const DOWNLOAD_ENDPOINT: &str =
-		"https://github.com/glacier-modding/Hitman-Hashes/releases/latest/download/hash_list.sml";
+		"https://github.com/glacier-modding/Game-Hashes/releases/latest/download/hash_list.sml";
 
 	pub const DOWNLOAD_PINS_ENDPOINT: &str =
-		"https://github.com/glacier-modding/Hitman-Hashes/releases/latest/download/pins.json";
+		"https://github.com/glacier-modding/Game-Hashes/releases/latest/download/pins.json";
 
 	/// Download, parse and cache the latest hash list version to the user's local data directory.
 	/// Will make a network request to check the latest version, and another to download it if the cached version is outdated or missing.
