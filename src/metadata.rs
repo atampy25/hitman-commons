@@ -39,7 +39,7 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 	module.ty::<MetadataCalculationError>()?;
 	module.ty::<FromRpkgResourceMetaError>()?;
 
-	#[cfg(feature = "rpkg-rs")]
+	#[cfg(any(feature = "rpkg-rs-1", feature = "rpkg-rs-2"))]
 	module.ty::<FromResourceInfoError>()?;
 
 	module
@@ -313,23 +313,45 @@ impl RuntimeID {
 	}
 }
 
-#[cfg(feature = "rpkg-rs")]
-impl TryFrom<rpkg_rs::resource::runtime_resource_id::RuntimeResourceID> for RuntimeID {
+#[cfg(feature = "rpkg-rs-1")]
+impl TryFrom<rpkg_rs_1::resource::runtime_resource_id::RuntimeResourceID> for RuntimeID {
 	type Error = RuntimeIDFromHashError;
 
 	#[try_fn]
-	fn try_from(val: rpkg_rs::resource::runtime_resource_id::RuntimeResourceID) -> Result<Self, Self::Error> {
+	fn try_from(val: rpkg_rs_1::resource::runtime_resource_id::RuntimeResourceID) -> Result<Self, Self::Error> {
 		// TODO: We should be able to use the u64 directly instead of having to convert to/from a string.
 		RuntimeID::from_hash(&val.to_hex_string())?
 	}
 }
 
-#[cfg(feature = "rpkg-rs")]
-impl TryFrom<&rpkg_rs::resource::runtime_resource_id::RuntimeResourceID> for RuntimeID {
+#[cfg(feature = "rpkg-rs-1")]
+impl TryFrom<&rpkg_rs_1::resource::runtime_resource_id::RuntimeResourceID> for RuntimeID {
 	type Error = RuntimeIDFromHashError;
 
 	#[try_fn]
-	fn try_from(val: &rpkg_rs::resource::runtime_resource_id::RuntimeResourceID) -> Result<Self, Self::Error> {
+	fn try_from(val: &rpkg_rs_1::resource::runtime_resource_id::RuntimeResourceID) -> Result<Self, Self::Error> {
+		// TODO: We should be able to use the u64 directly instead of having to convert to/from a string.
+		RuntimeID::from_hash(&val.to_hex_string())?
+	}
+}
+
+#[cfg(feature = "rpkg-rs-2")]
+impl TryFrom<rpkg_rs_2::resource::runtime_resource_id::RuntimeResourceID> for RuntimeID {
+	type Error = RuntimeIDFromHashError;
+
+	#[try_fn]
+	fn try_from(val: rpkg_rs_2::resource::runtime_resource_id::RuntimeResourceID) -> Result<Self, Self::Error> {
+		// TODO: We should be able to use the u64 directly instead of having to convert to/from a string.
+		RuntimeID::from_hash(&val.to_hex_string())?
+	}
+}
+
+#[cfg(feature = "rpkg-rs-2")]
+impl TryFrom<&rpkg_rs_2::resource::runtime_resource_id::RuntimeResourceID> for RuntimeID {
+	type Error = RuntimeIDFromHashError;
+
+	#[try_fn]
+	fn try_from(val: &rpkg_rs_2::resource::runtime_resource_id::RuntimeResourceID) -> Result<Self, Self::Error> {
 		// TODO: We should be able to use the u64 directly instead of having to convert to/from a string.
 		RuntimeID::from_hash(&val.to_hex_string())?
 	}
@@ -1450,10 +1472,10 @@ impl TryFrom<RpkgResourceMeta> for ExtendedResourceMetadata {
 	}
 }
 
-#[cfg(feature = "rpkg-rs")]
-use rpkg_rs::resource::resource_info::ResourceInfo;
+#[cfg(feature = "rpkg-rs-1")]
+use rpkg_rs_1::resource::resource_info::ResourceInfo;
 
-#[cfg(feature = "rpkg-rs")]
+#[cfg(any(feature = "rpkg-rs-1", feature = "rpkg-rs-2"))]
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::glacier_commons::metadata))]
@@ -1466,7 +1488,7 @@ pub enum FromResourceInfoError {
 	InvalidResourceType
 }
 
-#[cfg(feature = "rpkg-rs")]
+#[cfg(feature = "rpkg-rs-1")]
 impl TryFrom<&ResourceInfo> for ExtendedResourceMetadata {
 	type Error = FromResourceInfoError;
 
@@ -1484,11 +1506,13 @@ impl TryFrom<&ResourceInfo> for ExtendedResourceMetadata {
 							resource: RuntimeID::try_from(*id).map_err(FromResourceInfoError::InvalidID)?,
 							flags: ReferenceFlags {
 								reference_type: match flags.reference_type() {
-									rpkg_rs::resource::resource_package::ReferenceType::INSTALL => {
+									rpkg_rs_1::resource::resource_package::ReferenceType::INSTALL => {
 										ReferenceType::Install
 									}
-									rpkg_rs::resource::resource_package::ReferenceType::NORMAL => ReferenceType::Normal,
-									rpkg_rs::resource::resource_package::ReferenceType::WEAK => ReferenceType::Weak
+									rpkg_rs_1::resource::resource_package::ReferenceType::NORMAL => {
+										ReferenceType::Normal
+									}
+									rpkg_rs_1::resource::resource_package::ReferenceType::WEAK => ReferenceType::Weak
 								},
 								acquired: flags.is_acquired(),
 								language_code: flags.language_code()
@@ -1505,7 +1529,7 @@ impl TryFrom<&ResourceInfo> for ExtendedResourceMetadata {
 	}
 }
 
-#[cfg(feature = "rpkg-rs")]
+#[cfg(feature = "rpkg-rs-1")]
 impl TryFrom<&ResourceInfo> for ResourceMetadata {
 	type Error = FromResourceInfoError;
 
@@ -1522,9 +1546,91 @@ impl TryFrom<&ResourceInfo> for ResourceMetadata {
 						resource: RuntimeID::try_from(*id).map_err(FromResourceInfoError::InvalidID)?,
 						flags: ReferenceFlags {
 							reference_type: match flags.reference_type() {
-								rpkg_rs::resource::resource_package::ReferenceType::INSTALL => ReferenceType::Install,
-								rpkg_rs::resource::resource_package::ReferenceType::NORMAL => ReferenceType::Normal,
-								rpkg_rs::resource::resource_package::ReferenceType::WEAK => ReferenceType::Weak
+								rpkg_rs_1::resource::resource_package::ReferenceType::INSTALL => ReferenceType::Install,
+								rpkg_rs_1::resource::resource_package::ReferenceType::NORMAL => ReferenceType::Normal,
+								rpkg_rs_1::resource::resource_package::ReferenceType::WEAK => ReferenceType::Weak
+							},
+							acquired: flags.is_acquired(),
+							language_code: flags.language_code()
+						}
+					})
+				})
+				.collect::<Result<_, _>>()?,
+			compressed: info.is_compressed(),
+			scrambled: info.is_scrambled()
+		}
+	}
+}
+
+#[cfg(feature = "rpkg-rs-2")]
+impl TryFrom<&rpkg_rs_2::resource::resource_info::ResourceInfo> for ExtendedResourceMetadata {
+	type Error = FromResourceInfoError;
+
+	#[try_fn]
+	fn try_from(
+		info: &rpkg_rs_2::resource::resource_info::ResourceInfo
+	) -> Result<ExtendedResourceMetadata, Self::Error> {
+		ExtendedResourceMetadata {
+			core_info: ResourceMetadata {
+				id: RuntimeID::try_from(*info.rrid()).map_err(FromResourceInfoError::InvalidID)?,
+				resource_type: info.data_type().try_into().unwrap(),
+				references: info
+					.references()
+					.iter()
+					.map(|(id, flags)| {
+						Ok::<_, Self::Error>(ResourceReference {
+							resource: RuntimeID::try_from(*id).map_err(FromResourceInfoError::InvalidID)?,
+							flags: ReferenceFlags {
+								reference_type: match flags.reference_type() {
+									rpkg_rs_2::resource::resource_package::ReferenceType::INSTALL => {
+										ReferenceType::Install
+									}
+									rpkg_rs_2::resource::resource_package::ReferenceType::NORMAL => {
+										ReferenceType::Normal
+									}
+									rpkg_rs_2::resource::resource_package::ReferenceType::WEAK => ReferenceType::Weak,
+									rpkg_rs_2::resource::resource_package::ReferenceType::STREAMED => {
+										ReferenceType::Streamed
+									}
+								},
+								acquired: flags.is_acquired(),
+								language_code: flags.language_code()
+							}
+						})
+					})
+					.collect::<Result<_, _>>()?,
+				compressed: info.is_compressed(),
+				scrambled: info.is_scrambled()
+			},
+			system_memory_requirement: info.system_memory_requirement(),
+			video_memory_requirement: info.video_memory_requirement()
+		}
+	}
+}
+
+#[cfg(feature = "rpkg-rs-2")]
+impl TryFrom<&rpkg_rs_2::resource::resource_info::ResourceInfo> for ResourceMetadata {
+	type Error = FromResourceInfoError;
+
+	#[try_fn]
+	fn try_from(info: &rpkg_rs_2::resource::resource_info::ResourceInfo) -> Result<ResourceMetadata, Self::Error> {
+		ResourceMetadata {
+			id: RuntimeID::try_from(*info.rrid()).map_err(FromResourceInfoError::InvalidID)?,
+			resource_type: info.data_type().try_into().unwrap(),
+			references: info
+				.references()
+				.iter()
+				.map(|(id, flags)| {
+					Ok::<_, Self::Error>(ResourceReference {
+						resource: RuntimeID::try_from(*id).map_err(FromResourceInfoError::InvalidID)?,
+						flags: ReferenceFlags {
+							reference_type: match flags.reference_type() {
+								rpkg_rs_2::resource::resource_package::ReferenceType::INSTALL => ReferenceType::Install,
+								rpkg_rs_2::resource::resource_package::ReferenceType::NORMAL => ReferenceType::Normal,
+								rpkg_rs_2::resource::resource_package::ReferenceType::WEAK => ReferenceType::Weak,
+								rpkg_rs_2::resource::resource_package::ReferenceType::STREAMED => {
+									ReferenceType::Streamed
+								}
 							},
 							acquired: flags.is_acquired(),
 							language_code: flags.language_code()

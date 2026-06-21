@@ -275,10 +275,10 @@ impl RpkgResourceMeta {
 	}
 }
 
-#[cfg(feature = "rpkg-rs")]
-use rpkg_rs::resource::{resource_info::ResourceInfo, resource_package::ResourceReferenceFlags};
+#[cfg(feature = "rpkg-rs-1")]
+use rpkg_rs_1::resource::{resource_info::ResourceInfo, resource_package::ResourceReferenceFlags};
 
-#[cfg(feature = "rpkg-rs")]
+#[cfg(feature = "rpkg-rs-1")]
 impl TryFrom<ResourceInfo> for RpkgResourceMeta {
 	type Error = RpkgInteropError;
 
@@ -315,7 +315,7 @@ impl TryFrom<ResourceInfo> for RpkgResourceMeta {
 	}
 }
 
-#[cfg(feature = "rpkg-rs")]
+#[cfg(feature = "rpkg-rs-1")]
 impl TryFrom<&ResourceInfo> for RpkgResourceMeta {
 	type Error = RpkgInteropError;
 
@@ -340,6 +340,84 @@ impl TryFrom<&ResourceInfo> for RpkgResourceMeta {
 							match flag {
 								ResourceReferenceFlags::Legacy(x) => x.into_bits(),
 								ResourceReferenceFlags::Standard(x) => x.into_bits()
+							}
+						),
+						hash: hash.try_into()?
+					})
+				})
+				.collect::<Result<_>>()?,
+			hash_reference_table_size: info.reference_chunk_size() as u32,
+			hash_reference_table_dummy: info.states_chunk_size() as u32
+		}
+	}
+}
+
+#[cfg(feature = "rpkg-rs-2")]
+impl TryFrom<rpkg_rs_2::resource::resource_info::ResourceInfo> for RpkgResourceMeta {
+	type Error = RpkgInteropError;
+
+	#[try_fn]
+	fn try_from(info: rpkg_rs_2::resource::resource_info::ResourceInfo) -> Result<RpkgResourceMeta> {
+		RpkgResourceMeta {
+			hash_offset: info.data_offset(),
+			hash_size: info.compressed_size().unwrap_or(0) | (if info.is_scrambled() { 0x80000000 } else { 0x0 }),
+			hash_size_final: info.size(),
+			hash_value: info.rrid().try_into()?,
+			hash_path: None,
+			hash_size_in_memory: info.system_memory_requirement(),
+			hash_size_in_video_memory: info.video_memory_requirement(),
+			hash_resource_type: info.data_type().try_into()?,
+			hash_reference_data: info
+				.references()
+				.iter()
+				.map(|(hash, flag)| {
+					Ok(RpkgResourceReference {
+						flag: eco_format!(
+							"{:02X}",
+							match flag {
+								rpkg_rs_2::resource::resource_package::ResourceReferenceFlags::Legacy(x) =>
+									x.into_bits(),
+								rpkg_rs_2::resource::resource_package::ResourceReferenceFlags::Standard(x) =>
+									x.into_bits(),
+							}
+						),
+						hash: hash.try_into()?
+					})
+				})
+				.collect::<Result<_>>()?,
+			hash_reference_table_size: info.reference_chunk_size() as u32,
+			hash_reference_table_dummy: info.states_chunk_size() as u32
+		}
+	}
+}
+
+#[cfg(feature = "rpkg-rs-2")]
+impl TryFrom<&rpkg_rs_2::resource::resource_info::ResourceInfo> for RpkgResourceMeta {
+	type Error = RpkgInteropError;
+
+	#[try_fn]
+	fn try_from(info: &rpkg_rs_2::resource::resource_info::ResourceInfo) -> Result<RpkgResourceMeta> {
+		RpkgResourceMeta {
+			hash_offset: info.data_offset(),
+			hash_size: info.compressed_size().unwrap_or(0) | (if info.is_scrambled() { 0x80000000 } else { 0x0 }),
+			hash_size_final: info.size(),
+			hash_value: info.rrid().try_into()?,
+			hash_path: None,
+			hash_size_in_memory: info.system_memory_requirement(),
+			hash_size_in_video_memory: info.video_memory_requirement(),
+			hash_resource_type: info.data_type().try_into()?,
+			hash_reference_data: info
+				.references()
+				.iter()
+				.map(|(hash, flag)| {
+					Ok(RpkgResourceReference {
+						flag: eco_format!(
+							"{:02X}",
+							match flag {
+								rpkg_rs_2::resource::resource_package::ResourceReferenceFlags::Legacy(x) =>
+									x.into_bits(),
+								rpkg_rs_2::resource::resource_package::ResourceReferenceFlags::Standard(x) =>
+									x.into_bits(),
 							}
 						),
 						hash: hash.try_into()?

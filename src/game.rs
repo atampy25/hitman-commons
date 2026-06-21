@@ -50,38 +50,90 @@ impl Display for GlacierGame {
 	}
 }
 
-#[cfg(feature = "rpkg-rs")]
-impl From<rpkg_rs::WoaVersion> for GlacierGame {
-	fn from(value: rpkg_rs::WoaVersion) -> Self {
+#[cfg(feature = "rpkg-rs-1")]
+impl From<rpkg_rs_1::WoaVersion> for GlacierGame {
+	fn from(value: rpkg_rs_1::WoaVersion) -> Self {
 		match value {
-			rpkg_rs::WoaVersion::HM2016 => GlacierGame::H1,
-			rpkg_rs::WoaVersion::HM2 => GlacierGame::H2,
-			rpkg_rs::WoaVersion::HM3 => GlacierGame::H3
+			rpkg_rs_1::WoaVersion::HM2016 => GlacierGame::H1,
+			rpkg_rs_1::WoaVersion::HM2 => GlacierGame::H2,
+			rpkg_rs_1::WoaVersion::HM3 => GlacierGame::H3
 		}
 	}
 }
 
-#[cfg(feature = "rpkg-rs")]
-impl From<GlacierGame> for Option<rpkg_rs::WoaVersion> {
+#[cfg(feature = "rpkg-rs-1")]
+impl From<GlacierGame> for Option<rpkg_rs_1::WoaVersion> {
 	fn from(value: GlacierGame) -> Self {
 		match value {
-			GlacierGame::H1 => Some(rpkg_rs::WoaVersion::HM2016),
-			GlacierGame::H2 => Some(rpkg_rs::WoaVersion::HM2),
-			GlacierGame::H3 => Some(rpkg_rs::WoaVersion::HM3),
+			GlacierGame::H1 => Some(rpkg_rs_1::WoaVersion::HM2016),
+			GlacierGame::H2 => Some(rpkg_rs_1::WoaVersion::HM2),
+			GlacierGame::H3 => Some(rpkg_rs_1::WoaVersion::HM3),
 			_ => None
 		}
 	}
 }
 
 #[derive(Error, Debug)]
-pub enum FromGlacierTextureError {
+pub enum GameVersionError {
 	#[error("unknown game version")]
-	UnknownGlacierGame
+	UnknownGameVersion
+}
+
+#[cfg(feature = "rpkg-rs-2")]
+impl From<rpkg_rs_2::WoaGame> for GlacierGame {
+	fn from(value: rpkg_rs_2::WoaGame) -> Self {
+		match value {
+			rpkg_rs_2::WoaGame::HM2016 => GlacierGame::H1,
+			rpkg_rs_2::WoaGame::HM2 => GlacierGame::H2,
+			rpkg_rs_2::WoaGame::HM3 => GlacierGame::H3
+		}
+	}
+}
+
+#[cfg(feature = "rpkg-rs-2")]
+impl TryFrom<GlacierGame> for rpkg_rs_2::WoaGame {
+	type Error = GameVersionError;
+
+	#[tryvial::try_fn]
+	fn try_from(value: GlacierGame) -> Result<Self, Self::Error> {
+		match value {
+			GlacierGame::H1 => rpkg_rs_2::WoaGame::HM2016,
+			GlacierGame::H2 => rpkg_rs_2::WoaGame::HM2,
+			GlacierGame::H3 => rpkg_rs_2::WoaGame::HM3,
+			_ => return Err(GameVersionError::UnknownGameVersion)
+		}
+	}
+}
+
+#[cfg(feature = "rpkg-rs-2")]
+impl TryFrom<rpkg_rs_2::GlacierGame> for GlacierGame {
+	type Error = GameVersionError;
+
+	#[tryvial::try_fn]
+	fn try_from(value: rpkg_rs_2::GlacierGame) -> Result<Self, Self::Error> {
+		match value {
+			rpkg_rs_2::GlacierGame::Woa(game) => game.into(),
+			rpkg_rs_2::GlacierGame::Knt => GlacierGame::FL,
+			_ => return Err(GameVersionError::UnknownGameVersion)
+		}
+	}
+}
+
+#[cfg(feature = "rpkg-rs-2")]
+impl From<GlacierGame> for rpkg_rs_2::GlacierGame {
+	fn from(value: GlacierGame) -> Self {
+		match value {
+			GlacierGame::H1 => rpkg_rs_2::GlacierGame::Woa(rpkg_rs_2::WoaGame::HM2016),
+			GlacierGame::H2 => rpkg_rs_2::GlacierGame::Woa(rpkg_rs_2::WoaGame::HM2),
+			GlacierGame::H3 => rpkg_rs_2::GlacierGame::Woa(rpkg_rs_2::WoaGame::HM3),
+			GlacierGame::FL => rpkg_rs_2::GlacierGame::Knt
+		}
+	}
 }
 
 #[cfg(feature = "glacier-texture")]
 impl TryFrom<glacier_texture::GlacierGame> for GlacierGame {
-	type Error = FromGlacierTextureError;
+	type Error = GameVersionError;
 
 	#[tryvial::try_fn]
 	fn try_from(value: glacier_texture::GlacierGame) -> Result<Self, Self::Error> {
@@ -90,7 +142,7 @@ impl TryFrom<glacier_texture::GlacierGame> for GlacierGame {
 			glacier_texture::GlacierGame::HM2 => GlacierGame::H2,
 			glacier_texture::GlacierGame::HM3 => GlacierGame::H3,
 			glacier_texture::GlacierGame::KNT => GlacierGame::FL,
-			_ => return Err(FromGlacierTextureError::UnknownGlacierGame)
+			_ => return Err(GameVersionError::UnknownGameVersion)
 		}
 	}
 }
@@ -107,15 +159,9 @@ impl From<GlacierGame> for glacier_texture::GlacierGame {
 	}
 }
 
-#[derive(Error, Debug)]
-pub enum FromTonyToolsError {
-	#[error("unknown game version")]
-	UnknownGlacierGame
-}
-
 #[cfg(feature = "tonytools")]
 impl TryFrom<tonytools::Version> for GlacierGame {
-	type Error = FromTonyToolsError;
+	type Error = GameVersionError;
 
 	#[tryvial::try_fn]
 	fn try_from(value: tonytools::Version) -> Result<Self, Self::Error> {
@@ -124,7 +170,7 @@ impl TryFrom<tonytools::Version> for GlacierGame {
 			tonytools::Version::H2 => GlacierGame::H2,
 			tonytools::Version::H3 => GlacierGame::H3,
 			tonytools::Version::KNT => GlacierGame::FL,
-			tonytools::Version::Unknown => return Err(FromTonyToolsError::UnknownGlacierGame)
+			tonytools::Version::Unknown => return Err(GameVersionError::UnknownGameVersion)
 		}
 	}
 }
