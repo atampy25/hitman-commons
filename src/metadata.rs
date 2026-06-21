@@ -186,10 +186,10 @@ impl RuntimeID {
 		}
 
 		if let Some(agnostic) = hash.strip_prefix("0x") {
-			let val = u64::from_str_radix(agnostic, 16).map_err(RuntimeIDFromHashError::InvalidNumber)? & (1 << 56);
+			let val = u64::from_str_radix(agnostic, 16).map_err(RuntimeIDFromHashError::InvalidNumber)? | (1 << 56);
 			val.try_into().map_err(RuntimeIDFromHashError::InvalidID)?
 		} else {
-			let val = u64::from_str_radix(&hash[2..], 16).map_err(RuntimeIDFromHashError::InvalidNumber)?;
+			let val = u64::from_str_radix(hash, 16).map_err(RuntimeIDFromHashError::InvalidNumber)?;
 			val.try_into().map_err(RuntimeIDFromHashError::InvalidID)?
 		}
 	}
@@ -332,20 +332,6 @@ impl TryFrom<&rpkg_rs::resource::runtime_resource_id::RuntimeResourceID> for Run
 	fn try_from(val: &rpkg_rs::resource::runtime_resource_id::RuntimeResourceID) -> Result<Self, Self::Error> {
 		// TODO: We should be able to use the u64 directly instead of having to convert to/from a string.
 		RuntimeID::from_hash(&val.to_hex_string())?
-	}
-}
-
-#[cfg(feature = "rpkg-rs")]
-impl From<RuntimeID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-	fn from(val: RuntimeID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-		rpkg_rs::resource::runtime_resource_id::RuntimeResourceID::from(u64::from(val))
-	}
-}
-
-#[cfg(feature = "rpkg-rs")]
-impl From<&RuntimeID> for rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-	fn from(val: &RuntimeID) -> rpkg_rs::resource::runtime_resource_id::RuntimeResourceID {
-		rpkg_rs::resource::runtime_resource_id::RuntimeResourceID::from(u64::from(*val))
 	}
 }
 

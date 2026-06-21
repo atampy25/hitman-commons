@@ -20,7 +20,7 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::glacier_commons::game))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
@@ -144,21 +144,37 @@ impl From<GlacierGame> for tonytools::Version {
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::glacier_commons::game))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
 pub enum GamePlatform {
+	#[cfg_attr(feature = "serde", serde(rename = "pc"))]
 	PC,
+
+	#[cfg_attr(feature = "serde", serde(rename = "macos"))]
 	MacOS,
+
 	#[allow(non_camel_case_types)]
+	#[cfg_attr(feature = "serde", serde(rename = "ios"))]
 	iOS,
+
+	#[cfg_attr(feature = "serde", serde(rename = "ps4"))]
 	PS4,
+
+	#[cfg_attr(feature = "serde", serde(rename = "ps5"))]
 	PS5,
+
+	#[cfg_attr(feature = "serde", serde(rename = "xboxOne"))]
 	XboxOne,
+
+	#[cfg_attr(feature = "serde", serde(rename = "xboxSeries"))]
 	XboxSeries,
+
+	#[cfg_attr(feature = "serde", serde(rename = "nintendoSwitch"))]
 	NintendoSwitch,
+
+	#[cfg_attr(feature = "serde", serde(rename = "nintendoSwitch2"))]
 	NintendoSwitch2
 }
 
@@ -232,7 +248,7 @@ impl GamePlatform {
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::glacier_commons::game))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]

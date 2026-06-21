@@ -90,7 +90,7 @@ impl Clone for HashList {
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::glacier_commons::hash_list))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
-#[cfg_attr(feature = "rune", rune(constructor_fn = Self::rune_construct))]
+#[cfg_attr(feature = "rune", rune(constructor_fn = Self::rune_construct, install_with = Self::rune_install))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct HashData {
 	#[cfg_attr(feature = "rune", rune(get, set))]
@@ -249,6 +249,9 @@ impl HashList {
 	pub const DOWNLOAD_ENDPOINT: &str =
 		"https://github.com/glacier-modding/Hitman-Hashes/releases/latest/download/hash_list.sml";
 
+	pub const DOWNLOAD_PINS_ENDPOINT: &str =
+		"https://github.com/glacier-modding/Hitman-Hashes/releases/latest/download/pins.json";
+
 	/// Download, parse and cache the latest hash list version to the user's local data directory.
 	/// Will make a network request to check the latest version, and another to download it if the cached version is outdated or missing.
 	/// If the network requests fail, no error will be returned and the existing cached version (if any) will remain in use.
@@ -275,15 +278,24 @@ impl HashList {
 		{
 			let new_version = data.trim().parse::<u32>()?;
 
-			if current_version < new_version
-				&& let Ok(data) = reqwest::get(Self::DOWNLOAD_ENDPOINT).await
-				&& let Ok(data) = data.error_for_status()
-				&& let Ok(data) = data.bytes().await
-			{
-				self.load_compressed(&data)?;
+			if current_version < new_version {
+				if let Ok(data) = reqwest::get(Self::DOWNLOAD_PINS_ENDPOINT).await
+					&& let Ok(data) = data.error_for_status()
+					&& let Ok(data) = data.bytes().await
+				{
+					fs::create_dir_all(&data_dir)?;
+					fs::write(data_dir.join("pins.json"), data)?;
+				}
 
-				fs::create_dir_all(data_dir)?;
-				fs::write(hash_list_path, data)?;
+				if let Ok(data) = reqwest::get(Self::DOWNLOAD_ENDPOINT).await
+					&& let Ok(data) = data.error_for_status()
+					&& let Ok(data) = data.bytes().await
+				{
+					self.load_compressed(&data)?;
+
+					fs::create_dir_all(&data_dir)?;
+					fs::write(hash_list_path, data)?;
+				}
 			}
 		}
 	}
