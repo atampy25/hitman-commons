@@ -1,11 +1,13 @@
-use crate::game::{GamePlatform, GameVersion};
-use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
+
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+use crate::game::{GlacierGame, StorePlatform};
 
 #[cfg(feature = "rune")]
 pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
-	let mut module = rune::Module::with_crate_item("hitman_commons", ["game_detection"])?;
+	let mut module = rune::Module::with_crate_item("glacier_commons", ["game_detection"])?;
 
 	module.function_meta(detect_installs__meta)?;
 	module.ty::<GameInstall>()?;
@@ -16,7 +18,7 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::game_detection))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::game_detection))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum GameDetectionError {
 	#[error("Couldn't get environment variable {0}: {1}")]
@@ -47,7 +49,7 @@ struct SteamLibraryFolder {
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::game_detection))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::game_detection))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(feature = "rune", rune(install_with = Self::rune_install))]
 #[cfg_attr(feature = "rune", rune(constructor_fn = Self::rune_construct))]
@@ -55,17 +57,17 @@ struct SteamLibraryFolder {
 #[serde(rename_all = "camelCase")]
 pub struct GameInstall {
 	#[cfg_attr(feature = "rune", rune(get, set))]
-	pub version: GameVersion,
+	pub version: GlacierGame,
 
 	#[cfg_attr(feature = "rune", rune(get, set))]
-	pub platform: GamePlatform,
+	pub platform: StorePlatform,
 
 	pub path: PathBuf
 }
 
 #[cfg(feature = "rune")]
 impl GameInstall {
-	fn rune_construct(version: GameVersion, platform: GamePlatform, path: String) -> Self {
+	fn rune_construct(version: GlacierGame, platform: StorePlatform, path: String) -> Self {
 		Self {
 			version,
 			platform,
@@ -103,9 +105,9 @@ mod detection {
 	use serde_json::Value;
 	use tryvial::try_fn;
 
-	use crate::game::GameVersion;
+	use crate::game::GlacierGame;
 
-	use super::{GameDetectionError, GameInstall, GamePlatform, SteamLibraryFolder};
+	use super::{GameDetectionError, GameInstall, SteamLibraryFolder, StorePlatform};
 
 	#[try_fn]
 	pub fn detect_installs() -> Result<Vec<GameInstall>, GameDetectionError> {
@@ -145,7 +147,7 @@ mod detection {
 									GameDetectionError::IncorrectType("install_path".into(), "string".into())
 								})?
 						),
-						GamePlatform::Epic
+						StorePlatform::Epic
 					));
 				}
 
@@ -160,7 +162,22 @@ mod detection {
 									GameDetectionError::IncorrectType("install_path".into(), "string".into())
 								})?
 						),
-						GamePlatform::Epic
+						StorePlatform::Epic
+					));
+				}
+
+				// First Light
+				if let Some(data) = legendary_installed_data.get("6454af35a8234d5891a5159ad0a4f8bb") {
+					check_paths.push((
+						PathBuf::from(
+							data.get("install_path")
+								.ok_or_else(|| GameDetectionError::MissingField("install_path".into()))?
+								.as_str()
+								.ok_or_else(|| {
+									GameDetectionError::IncorrectType("install_path".into(), "string".into())
+								})?
+						),
+						StorePlatform::Epic
 					));
 				}
 			}
@@ -203,7 +220,7 @@ mod detection {
 													)
 												})?
 										),
-										GamePlatform::Epic
+										StorePlatform::Epic
 									));
 								}
 
@@ -231,7 +248,35 @@ mod detection {
 													)
 												})?
 										),
-										GamePlatform::Epic
+										StorePlatform::Epic
+									));
+								}
+
+								// First Light
+								if manifest_data
+									.get("AppName")
+									.ok_or_else(|| GameDetectionError::MissingField("AppName".into()))?
+									.as_str()
+									.ok_or_else(|| {
+										GameDetectionError::IncorrectType("AppName".into(), "string".into())
+									})? == "6454af35a8234d5891a5159ad0a4f8bb"
+								{
+									check_paths.push((
+										PathBuf::from(
+											manifest_data
+												.get("InstallLocation")
+												.ok_or_else(|| {
+													GameDetectionError::MissingField("InstallLocation".into())
+												})?
+												.as_str()
+												.ok_or_else(|| {
+													GameDetectionError::IncorrectType(
+														"InstallLocation".into(),
+														"string".into()
+													)
+												})?
+										),
+										StorePlatform::Epic
 									));
 								}
 							}
@@ -248,7 +293,7 @@ mod detection {
 			}
 		}
 
-		// 	Steam installs
+		// Steam installs
 		if let Ok(hive) = Hive::CurrentUser.open(r#"Software\Valve\Steam"#, Security::Read) {
 			match hive.value("SteamPath") {
 				Ok(Data::String(d)) => {
@@ -283,7 +328,7 @@ mod detection {
 										.join("steamapps")
 										.join("common")
 										.join("HITMAN™"),
-									GamePlatform::Steam
+									StorePlatform::Steam
 								));
 							}
 
@@ -294,7 +339,7 @@ mod detection {
 										.join("steamapps")
 										.join("common")
 										.join("HITMAN2"),
-									GamePlatform::Steam
+									StorePlatform::Steam
 								));
 							}
 
@@ -305,7 +350,18 @@ mod detection {
 										.join("steamapps")
 										.join("common")
 										.join("HITMAN 3"),
-									GamePlatform::Steam
+									StorePlatform::Steam
+								));
+							}
+
+							// First Light
+							if folder.apps.contains_key("3768760") {
+								check_paths.push((
+									PathBuf::from(&folder.path)
+										.join("steamapps")
+										.join("common")
+										.join("007 First Light"),
+									StorePlatform::Steam
 								));
 							}
 						}
@@ -332,7 +388,7 @@ mod detection {
 
 				check_paths.push((
 					fs::read_link(path.trim()).map_err(|x| GameDetectionError::Io(path.trim().into(), x))?,
-					GamePlatform::Microsoft
+					StorePlatform::Microsoft
 				));
 			}
 		}
@@ -341,7 +397,7 @@ mod detection {
 		if let Ok(hive) = Hive::LocalMachine.open(r#"Software\WOW6432Node\GOG.com\Games\1545448592"#, Security::Read) {
 			match hive.value("path") {
 				Ok(Data::String(d)) => {
-					check_paths.push((PathBuf::from(&d.to_string_lossy()), GamePlatform::GOG));
+					check_paths.push((PathBuf::from(&d.to_string_lossy()), StorePlatform::GOG));
 				}
 
 				_ => Err(GameDetectionError::IncorrectType("path".into(), "string".into()))?
@@ -359,11 +415,13 @@ mod detection {
 					path: path.join("Retail"),
 					platform,
 					version: if path.join("Retail").join("HITMAN3.exe").is_file() {
-						GameVersion::H3
+						GlacierGame::H3
 					} else if path.join("Retail").join("HITMAN2.exe").is_file() {
-						GameVersion::H2
+						GlacierGame::H2
 					} else if path.join("Retail").join("HITMAN.exe").is_file() {
-						GameVersion::H1
+						GlacierGame::H1
+					} else if path.join("Retail").join("007FirstLight.exe").is_file() {
+						GlacierGame::FL
 					} else {
 						panic!("Unknown game added to check paths");
 					}
@@ -388,9 +446,9 @@ mod detection {
 	use serde_json::Value;
 	use tryvial::try_fn;
 
-	use crate::game::GameVersion;
+	use crate::game::GlacierGame;
 
-	use super::{GameDetectionError, GameInstall, GamePlatform, SteamLibraryFolder};
+	use super::{GameDetectionError, GameInstall, SteamLibraryFolder, StorePlatform};
 
 	#[try_fn]
 	pub fn detect_installs() -> Result<Vec<GameInstall>, GameDetectionError> {
@@ -429,7 +487,7 @@ mod detection {
 									GameDetectionError::IncorrectType("install_path".into(), "string".into())
 								})?
 						),
-						GamePlatform::Epic
+						StorePlatform::Epic
 					));
 				}
 
@@ -444,7 +502,22 @@ mod detection {
 									GameDetectionError::IncorrectType("install_path".into(), "string".into())
 								})?
 						),
-						GamePlatform::Epic
+						StorePlatform::Epic
+					));
+				}
+
+				// First Light
+				if let Some(data) = legendary_installed_data.get("6454af35a8234d5891a5159ad0a4f8bb") {
+					check_paths.push((
+						PathBuf::from(
+							data.get("install_path")
+								.ok_or_else(|| GameDetectionError::MissingField("install_path".into()))?
+								.as_str()
+								.ok_or_else(|| {
+									GameDetectionError::IncorrectType("install_path".into(), "string".into())
+								})?
+						),
+						StorePlatform::Epic
 					));
 				}
 			}
@@ -481,7 +554,7 @@ mod detection {
 									.join("steamapps")
 									.join("common")
 									.join("HITMAN™"),
-								GamePlatform::Steam
+								StorePlatform::Steam
 							));
 
 							check_paths.push((
@@ -489,7 +562,7 @@ mod detection {
 									.join("steamapps")
 									.join("common")
 									.join("Hitman™"),
-								GamePlatform::Steam
+								StorePlatform::Steam
 							));
 
 							check_paths.push((
@@ -499,7 +572,7 @@ mod detection {
 									.join("Hitman™")
 									.join("share")
 									.join("data"),
-								GamePlatform::Steam
+								StorePlatform::Steam
 							));
 						}
 
@@ -510,7 +583,7 @@ mod detection {
 									.join("steamapps")
 									.join("common")
 									.join("HITMAN2"),
-								GamePlatform::Steam
+								StorePlatform::Steam
 							));
 						}
 
@@ -521,7 +594,18 @@ mod detection {
 									.join("steamapps")
 									.join("common")
 									.join("HITMAN 3"),
-								GamePlatform::Steam
+								StorePlatform::Steam
+							));
+						}
+
+						// First Light
+						if folder.apps.contains_key("3768760") {
+							check_paths.push((
+								PathBuf::from(&folder.path)
+									.join("steamapps")
+									.join("common")
+									.join("007 First Light"),
+								StorePlatform::Steam
 							));
 						}
 					}
@@ -539,11 +623,13 @@ mod detection {
 
 			if let Some(retail_folder) = retail_folder {
 				let version = if retail_folder.join("HITMAN3.exe").is_file() {
-					GameVersion::H3
+					GlacierGame::H3
 				} else if retail_folder.join("HITMAN2.exe").is_file() {
-					GameVersion::H2
+					GlacierGame::H2
 				} else if retail_folder.join("HITMAN.exe").is_file() || retail_folder.join("hitman.dll").is_file() {
-					GameVersion::H1
+					GlacierGame::H1
+				} else if retail_folder.join("007FirstLight.exe").is_file() {
+					GlacierGame::FL
 				} else {
 					panic!("Unknown game added to check paths");
 				};
