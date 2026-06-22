@@ -1677,9 +1677,18 @@ macro_rules! rid {
 					panic!("path too long for const buffer (max 512 bytes)");
 				}
 
+				let mut has_platform_suffix = false;
+
 				while i < bytes.len() {
 					let b = bytes[i];
 					lower[i] = if b >= b'A' && b <= b'Z' { b + 32 } else { b };
+
+					if i >= 4 {
+						if lower[i - 4] == b']' && lower[i - 3] == b'.' && lower[i - 2] == b'p' && lower[i - 1] == b'c' && lower[i] == b'_' {
+							has_platform_suffix = true;
+						}
+					}
+
 					i += 1;
 				}
 
@@ -1693,11 +1702,22 @@ macro_rules! rid {
 					j += 1;
 				}
 
+				if !has_platform_suffix {
+					val |= 1 << 56;
+				}
+
 				val
 			} else if s.len() == 16 {
-				match u64::from_str_radix(s, 16) {
-					Ok(val) => val,
-					Err(_) => panic!("invalid hash")
+				if bytes[0] == b'0' && bytes[1] == b'x' {
+					match u64::from_str_radix(s.split_at(2).1, 16) {
+						Ok(val) => val | (1 << 56),
+						Err(_) => panic!("invalid hash")
+					}
+				} else {
+					match u64::from_str_radix(s, 16) {
+						Ok(val) => val,
+						Err(_) => panic!("invalid hash")
+					}
 				}
 			} else {
 				panic!("invalid length")
