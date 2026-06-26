@@ -1,19 +1,17 @@
 use std::{
 	collections::HashMap,
 	hash::BuildHasherDefault,
-	io::Read,
 	sync::atomic::{AtomicU32, Ordering}
 };
 
 use arc_swap::ArcSwap;
 use ecow::EcoString;
 use identity_hash::IdentityHasher;
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
-use tryvial::try_fn;
 
 use crate::metadata::{ResourceType, RuntimeID};
+
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// Because RuntimeID is just a wrapper over a u64 derived from an MD5 hash, there is sufficient entropy to simply use it directly for improved performance.
 type PassthroughHash = BuildHasherDefault<IdentityHasher<u64>>;
@@ -28,9 +26,9 @@ pub static HASH_LIST: HashList = HashList {
 pub static CUSTOM_PATHS: papaya::HashMap<RuntimeID, EcoString, PassthroughHash> = papaya::HashMap::default();
 
 #[cfg(feature = "rune")]
-#[try_fn]
+#[tryvial::try_fn]
 pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
-	let mut module = rune::Module::with_crate_item("hitman_commons", ["hash_list"])?;
+	let mut module = rune::Module::with_crate_item("glacier_commons", ["hash_list"])?;
 
 	module.function("hash_list", || HASH_LIST.clone()).build()?;
 
@@ -55,17 +53,17 @@ struct DeserialisedHashList {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct DeserialisedEntry {
-	pub resource_type: ResourceType,
 	pub hash: RuntimeID,
+	pub resource_type: ResourceType,
 	pub path: EcoString,
 	pub hint: EcoString,
-	pub game_flags: u8
+	pub game_flags: u16
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::hash_list))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::hash_list))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, CLONE))]
 #[cfg_attr(feature = "rune", rune_functions(Self::r_get))]
 #[cfg_attr(
@@ -90,9 +88,9 @@ impl Clone for HashList {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::hash_list))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::hash_list))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
-#[cfg_attr(feature = "rune", rune(constructor_fn = Self::rune_construct))]
+#[cfg_attr(feature = "rune", rune(constructor_fn = Self::rune_construct, install_with = Self::rune_install))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct HashData {
 	#[cfg_attr(feature = "rune", rune(get, set))]
@@ -142,9 +140,9 @@ impl HashData {
 }
 
 #[cfg(feature = "hash-list")]
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::hash_list))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::hash_list))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum DeserialisationError {
 	#[error("decompression failed: {0}")]
@@ -154,12 +152,33 @@ pub enum DeserialisationError {
 	DeserialisationFailed(#[from] serde_smile::Error)
 }
 
+#[cfg(feature = "hash-list-download")]
+#[derive(thiserror::Error, Debug)]
+#[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::hash_list))]
+#[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
+pub enum DownloadError {
+	#[error("couldn't get data directory")]
+	NoDataDir,
+
+	#[error("online hash list version wasn't a number: {0}")]
+	VersionParseFailed(#[from] std::num::ParseIntError),
+
+	#[error("filesystem error: {0}")]
+	FilesystemError(#[from] std::io::Error),
+
+	#[error("deserialisation error: {0}")]
+	DeserialisationError(#[from] DeserialisationError)
+}
+
 impl HashList {
-	/// Load a hash list from the compressed Brotli/Smile format used by https://github.com/glacier-modding/Hitman-Hashes.
+	/// Load a hash list from the compressed Brotli/Smile format used by https://github.com/glacier-modding/Game-Hashes.
 	#[cfg(feature = "hash-list")]
-	#[try_fn]
+	#[tryvial::try_fn]
 	#[cfg_attr(feature = "rune", rune::function(keep, path = Self::from_compressed))]
 	pub fn from_compressed(data: &[u8]) -> Result<Self, DeserialisationError> {
+		use std::io::Read;
+
 		let mut decompressed = vec![];
 
 		brotli_decompressor::Decompressor::new(data, 4096)
@@ -190,11 +209,11 @@ impl HashList {
 		}
 	}
 
-	/// Replace the hash list with entries from the compressed Brotli/Smile format used by https://github.com/glacier-modding/Hitman-Hashes.
+	/// Replace the hash list with entries from the compressed Brotli/Smile format used by https://github.com/glacier-modding/Game-Hashes.
 	#[cfg(feature = "hash-list")]
-	#[try_fn]
+	#[tryvial::try_fn]
 	pub fn load_compressed(&self, data: &[u8]) -> Result<(), DeserialisationError> {
-		use std::sync::Arc;
+		use std::{io::Read, sync::Arc};
 
 		let mut decompressed = vec![];
 
@@ -222,6 +241,63 @@ impl HashList {
 				})
 				.collect()
 		));
+	}
+
+	pub const VERSION_ENDPOINT: &str =
+		"https://github.com/glacier-modding/Game-Hashes/releases/latest/download/version";
+
+	pub const DOWNLOAD_ENDPOINT: &str =
+		"https://github.com/glacier-modding/Game-Hashes/releases/latest/download/hash_list.sml";
+
+	pub const DOWNLOAD_PINS_ENDPOINT: &str =
+		"https://github.com/glacier-modding/Game-Hashes/releases/latest/download/pins.json";
+
+	/// Download, parse and cache the latest hash list version to the user's local data directory.
+	/// Will make a network request to check the latest version, and another to download it if the cached version is outdated or missing.
+	/// If the network requests fail, no error will be returned and the existing cached version (if any) will remain in use.
+	#[cfg(feature = "hash-list-download")]
+	#[tryvial::try_fn]
+	pub async fn load_latest(&self) -> Result<(), DownloadError> {
+		use std::fs;
+
+		let data_dir = dirs::data_local_dir()
+			.ok_or(DownloadError::NoDataDir)?
+			.join("glacier-commons");
+
+		let hash_list_path = data_dir.join("hash_list.sml");
+
+		let _ = fs::read(&hash_list_path)
+			.ok()
+			.and_then(|x| self.load_compressed(&x).ok());
+
+		let current_version = self.version.load(Ordering::SeqCst);
+
+		if let Ok(data) = reqwest::get(Self::VERSION_ENDPOINT).await
+			&& let Ok(data) = data.error_for_status()
+			&& let Ok(data) = data.text().await
+		{
+			let new_version = data.trim().parse::<u32>()?;
+
+			if current_version < new_version {
+				if let Ok(data) = reqwest::get(Self::DOWNLOAD_PINS_ENDPOINT).await
+					&& let Ok(data) = data.error_for_status()
+					&& let Ok(data) = data.bytes().await
+				{
+					fs::create_dir_all(&data_dir)?;
+					fs::write(data_dir.join("pins.json"), data)?;
+				}
+
+				if let Ok(data) = reqwest::get(Self::DOWNLOAD_ENDPOINT).await
+					&& let Ok(data) = data.error_for_status()
+					&& let Ok(data) = data.bytes().await
+				{
+					self.load_compressed(&data)?;
+
+					fs::create_dir_all(&data_dir)?;
+					fs::write(hash_list_path, data)?;
+				}
+			}
+		}
 	}
 }
 

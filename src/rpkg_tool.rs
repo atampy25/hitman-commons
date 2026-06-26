@@ -1,19 +1,20 @@
 use std::io::{Cursor, Read};
 
+use ecow::{EcoString, eco_format};
 use thiserror::Error;
 use tryvial::try_fn;
-
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 
 use crate::metadata::{
 	ExtendedResourceMetadata, FromU64Error, ResourceType, ResourceTypeError, RuntimeID, RuntimeIDFromHashError
 };
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 #[cfg(feature = "rune")]
 #[try_fn]
 pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
-	let mut module = rune::Module::with_crate_item("hitman_commons", ["rpkg_tool"])?;
+	let mut module = rune::Module::with_crate_item("glacier_commons", ["rpkg_tool"])?;
 
 	module.ty::<RpkgResourceMeta>()?;
 	module.ty::<RpkgResourceReference>()?;
@@ -25,7 +26,7 @@ pub fn rune_module() -> Result<rune::Module, rune::ContextError> {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "rune", serde_with::apply(_ => #[rune(get, set)]))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::rpkg_tool))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(feature = "rune", rune_functions(Self::r_new))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -69,7 +70,7 @@ impl RpkgResourceMeta {
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::rpkg_tool))]
 #[cfg_attr(feature = "rune", rune_derive(DEBUG_FMT, PARTIAL_EQ, EQ, CLONE))]
 #[cfg_attr(feature = "rune", rune(constructor))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -77,15 +78,17 @@ pub struct RpkgResourceReference {
 	#[cfg_attr(feature = "rune", rune(get, set))]
 	pub hash: RuntimeID,
 
-	#[cfg_attr(feature = "rune", rune(get, set))]
-	pub flag: String
+	#[cfg_attr(feature = "rune", rune(get, set, as_into = String))]
+	#[cfg_attr(feature = "schemars", schemars(with = "String"))]
+	#[cfg_attr(feature = "specta", specta(type = String))]
+	pub flag: EcoString
 }
 
 type Result<T, E = RpkgInteropError> = std::result::Result<T, E>;
 
 #[derive(Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
-#[cfg_attr(feature = "rune", rune(item = ::hitman_commons::rpkg_tool))]
+#[cfg_attr(feature = "rune", rune(item = ::glacier_commons::rpkg_tool))]
 #[cfg_attr(feature = "rune", rune_derive(DISPLAY_FMT, DEBUG_FMT))]
 pub enum RpkgInteropError {
 	#[error("seek error: {0}")]
@@ -126,7 +129,7 @@ impl RpkgResourceMeta {
 
 		let mut hash_resource_type = [0; 4];
 		cursor.read_exact(&mut hash_resource_type)?;
-		let hash_resource_type = String::from_utf8_lossy(&hash_resource_type).to_string();
+		let hash_resource_type = String::from_utf8_lossy(&hash_resource_type);
 
 		let mut hash_reference_table_size = [0; 4];
 		cursor.read_exact(&mut hash_reference_table_size)?;
@@ -178,7 +181,7 @@ impl RpkgResourceMeta {
 					.map(|(flag, reference)| {
 						Ok(RpkgResourceReference {
 							hash: reference.try_into()?,
-							flag: format!("{:X}", flag)
+							flag: eco_format!("{:02X}", flag)
 						})
 					})
 					.collect::<Result<Vec<_>>>()?
@@ -190,7 +193,7 @@ impl RpkgResourceMeta {
 			hash_reference_data: dependencies,
 			hash_reference_table_dummy,
 			hash_reference_table_size,
-			hash_resource_type: hash_resource_type.try_into()?,
+			hash_resource_type: hash_resource_type.as_ref().try_into()?,
 			hash_size,
 			hash_size_final,
 			hash_size_in_memory,
@@ -252,7 +255,7 @@ impl RpkgResourceMeta {
 				.references
 				.iter()
 				.map(|reference| RpkgResourceReference {
-					flag: format!(
+					flag: eco_format!(
 						"{:02X}",
 						if use_legacy_flags {
 							reference.flags.as_legacy()
@@ -272,10 +275,10 @@ impl RpkgResourceMeta {
 	}
 }
 
-#[cfg(feature = "rpkg-rs")]
-use rpkg_rs::resource::{resource_info::ResourceInfo, resource_package::ResourceReferenceFlags};
+#[cfg(feature = "rpkg-rs-1")]
+use rpkg_rs_1::resource::{resource_info::ResourceInfo, resource_package::ResourceReferenceFlags};
 
-#[cfg(feature = "rpkg-rs")]
+#[cfg(feature = "rpkg-rs-1")]
 impl TryFrom<ResourceInfo> for RpkgResourceMeta {
 	type Error = RpkgInteropError;
 
@@ -295,7 +298,7 @@ impl TryFrom<ResourceInfo> for RpkgResourceMeta {
 				.iter()
 				.map(|(hash, flag)| {
 					Ok(RpkgResourceReference {
-						flag: format!(
+						flag: eco_format!(
 							"{:02X}",
 							match flag {
 								ResourceReferenceFlags::Legacy(x) => x.into_bits(),
@@ -312,7 +315,7 @@ impl TryFrom<ResourceInfo> for RpkgResourceMeta {
 	}
 }
 
-#[cfg(feature = "rpkg-rs")]
+#[cfg(feature = "rpkg-rs-1")]
 impl TryFrom<&ResourceInfo> for RpkgResourceMeta {
 	type Error = RpkgInteropError;
 
@@ -332,11 +335,89 @@ impl TryFrom<&ResourceInfo> for RpkgResourceMeta {
 				.iter()
 				.map(|(hash, flag)| {
 					Ok(RpkgResourceReference {
-						flag: format!(
+						flag: eco_format!(
 							"{:02X}",
 							match flag {
 								ResourceReferenceFlags::Legacy(x) => x.into_bits(),
 								ResourceReferenceFlags::Standard(x) => x.into_bits()
+							}
+						),
+						hash: hash.try_into()?
+					})
+				})
+				.collect::<Result<_>>()?,
+			hash_reference_table_size: info.reference_chunk_size() as u32,
+			hash_reference_table_dummy: info.states_chunk_size() as u32
+		}
+	}
+}
+
+#[cfg(feature = "rpkg-rs-2")]
+impl TryFrom<rpkg_rs_2::resource::resource_info::ResourceInfo> for RpkgResourceMeta {
+	type Error = RpkgInteropError;
+
+	#[try_fn]
+	fn try_from(info: rpkg_rs_2::resource::resource_info::ResourceInfo) -> Result<RpkgResourceMeta> {
+		RpkgResourceMeta {
+			hash_offset: info.data_offset(),
+			hash_size: info.compressed_size().unwrap_or(0) | (if info.is_scrambled() { 0x80000000 } else { 0x0 }),
+			hash_size_final: info.size(),
+			hash_value: info.rrid().try_into()?,
+			hash_path: None,
+			hash_size_in_memory: info.system_memory_requirement(),
+			hash_size_in_video_memory: info.video_memory_requirement(),
+			hash_resource_type: info.data_type().try_into()?,
+			hash_reference_data: info
+				.references()
+				.iter()
+				.map(|(hash, flag)| {
+					Ok(RpkgResourceReference {
+						flag: eco_format!(
+							"{:02X}",
+							match flag {
+								rpkg_rs_2::resource::resource_package::ResourceReferenceFlags::Legacy(x) =>
+									x.into_bits(),
+								rpkg_rs_2::resource::resource_package::ResourceReferenceFlags::Standard(x) =>
+									x.into_bits(),
+							}
+						),
+						hash: hash.try_into()?
+					})
+				})
+				.collect::<Result<_>>()?,
+			hash_reference_table_size: info.reference_chunk_size() as u32,
+			hash_reference_table_dummy: info.states_chunk_size() as u32
+		}
+	}
+}
+
+#[cfg(feature = "rpkg-rs-2")]
+impl TryFrom<&rpkg_rs_2::resource::resource_info::ResourceInfo> for RpkgResourceMeta {
+	type Error = RpkgInteropError;
+
+	#[try_fn]
+	fn try_from(info: &rpkg_rs_2::resource::resource_info::ResourceInfo) -> Result<RpkgResourceMeta> {
+		RpkgResourceMeta {
+			hash_offset: info.data_offset(),
+			hash_size: info.compressed_size().unwrap_or(0) | (if info.is_scrambled() { 0x80000000 } else { 0x0 }),
+			hash_size_final: info.size(),
+			hash_value: info.rrid().try_into()?,
+			hash_path: None,
+			hash_size_in_memory: info.system_memory_requirement(),
+			hash_size_in_video_memory: info.video_memory_requirement(),
+			hash_resource_type: info.data_type().try_into()?,
+			hash_reference_data: info
+				.references()
+				.iter()
+				.map(|(hash, flag)| {
+					Ok(RpkgResourceReference {
+						flag: eco_format!(
+							"{:02X}",
+							match flag {
+								rpkg_rs_2::resource::resource_package::ResourceReferenceFlags::Legacy(x) =>
+									x.into_bits(),
+								rpkg_rs_2::resource::resource_package::ResourceReferenceFlags::Standard(x) =>
+									x.into_bits(),
 							}
 						),
 						hash: hash.try_into()?
