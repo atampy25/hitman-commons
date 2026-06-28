@@ -36,8 +36,8 @@ dirs = { version = "6.0.0", optional = true }
 regex = "1.12.4"
 
 [features]
-hash-list = ["serde", "dep:brotli-decompressor", "dep:serde-smile"]
-hash-list-download = ["hash-list", "dep:reqwest", "dep:dirs"]
+hash-list = ["serde", "dep:brotli-decompressor", "dep:serde-smile", "dep:dirs"]
+hash-list-download = ["hash-list", "dep:reqwest"]
 game-detection = [
     "serde",
     "dep:registry",

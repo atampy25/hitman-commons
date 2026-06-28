@@ -152,7 +152,7 @@ pub enum DeserialisationError {
 	DeserialisationFailed(#[from] serde_smile::Error)
 }
 
-#[cfg(feature = "hash-list-download")]
+#[cfg(feature = "hash-list")]
 #[derive(thiserror::Error, Debug)]
 #[cfg_attr(feature = "rune", derive(better_rune_derive::Any))]
 #[cfg_attr(feature = "rune", rune(item = ::glacier_commons::hash_list))]
@@ -251,6 +251,24 @@ impl HashList {
 
 	pub const DOWNLOAD_PINS_ENDPOINT: &str =
 		"https://github.com/glacier-modding/Game-Hashes/releases/latest/download/pins.json";
+
+	/// Load the cached hash list from the user's local data directory, without checking for updates.
+	/// If the cached hash list is missing or invalid, this will do nothing and return Ok.
+	#[cfg(feature = "hash-list")]
+	#[tryvial::try_fn]
+	pub fn load_cached(&self) -> Result<(), DownloadError> {
+		use std::fs;
+
+		let data_dir = dirs::data_local_dir()
+			.ok_or(DownloadError::NoDataDir)?
+			.join("glacier-commons");
+
+		let hash_list_path = data_dir.join("hash_list.sml");
+
+		let _ = fs::read(&hash_list_path)
+			.ok()
+			.and_then(|x| self.load_compressed(&x).ok());
+	}
 
 	/// Download, parse and cache the latest hash list version to the user's local data directory.
 	/// Will make a network request to check the latest version, and another to download it if the cached version is outdated or missing.
